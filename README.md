@@ -1,5 +1,5 @@
 # gen1cpu
-Finally, a CPU that isn't mind-numbingly complex. (Compilers and documentation sold separately.)
+Finally, a CPU that isn't mind-numbingly complex. Batteries sold separately.
 
 Implemented in Verilog and featuring an independently-designed instruction set (completely copyright-free!).
 
@@ -9,11 +9,9 @@ Implemented in Verilog and featuring an independently-designed instruction set (
 * Basic control flow (decision-making, looping and function calls)
 * Basic system-/user-mode functionality, complete with mode switching, invalid-instruction handling and interrupt handling
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals, TODO: test that)
-* ~Very lightweight (can fit into very cheap FPGAs and small 32-bit builds should be similar size to the smaller RISC-V cores)~ Probably isn't very small in current configuration, but can be made smaller (NOTE: Which ALU operations are included makes a huge difference to size)
+* Reasonably lightweight (may not fit on all embedded FPGAs but should on recent/mid-range ones)
 * Custom [instruction set](InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
-* ~Supports both 32-bit and 64-bit builds (instructions are always 32 bits but integer and memory operations are flexible)~ Currently only supports 64-bit builds but the instruction set itself is flexible
 * Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space (most reasonable implementations would only want between about 8 and 32 registers, but allowing special implementations to use a special number can't hurt. In the future, operating systems might support emulating different numbers of registers too, so allowing implementations to change the number only influences efficiency not ABI compatibility.)
-* Some wrappers for fitting it into a single memory bus (basic build assumes code and data buses are distinct)
 
 ## Code Overview
 
@@ -24,8 +22,10 @@ Implemented in Verilog and featuring an independently-designed instruction set (
 
 * Extended documentation
 * Tools
+* FPU (could be implemented by extending the control functions, but would likely take up a lot of FPGA space)
+* MMU (could possibly be implemented over the current bus though)
 * Optimisations (most/all instructions take more cycles than should be strictly necessary)
-* Test cases (I have done some ad-hoc testing with Icarus Verilog and also on FPGA, but only the FPGA module is included as the other was mostly trash)
+* Test cases (I have done some ad-hoc testing, initially with Icarus Verilog and also on FPGA, but only the FPGA module is included as I mostly trashed the other one while learning Verilog)
 * etc.
 
 ## Design
@@ -46,7 +46,7 @@ So, I decided a simpler solution was required. Initially I hired a third-party d
 
 The new instruction set is still somewhat similar to MIPS/RISC-V/ARM but not as "clever" in it's encoding, which makes developing tools and bootstrapping implementations a little easier and should also avoid infringing on any copyright (or worse, patents) for such cleverness. Luckily, computers don't need to be very clever (unless you need to suck up to investors), and often encoding-level optimisations aren't critical to modern use cases (or such optimisations make more sense as extensions). Using simpler encodings also allows them to be made slightly more memorable and easier to encode/decode by humans, which helps for the purposes of developing and debugging low-level code. 
 
-Obviously existing CPUs and MCUs have a lot of extra features (FPUs, MMUs, often built-in GPUs, etc.) and are already very fast, so there's not really much point trying to compete in terms of features-per-chip or gigahertz-per-chip or instructions-per-cycle etc. at least in the first generation of a new architecture, but I've tried to improve upon them in terms of ease-of-use: The core is defined in a single Verilog file (which should basically "drop right in" to a project with any FPGA development kit).
+Obviously existing CPUs and MCUs have a lot of extra features (FPUs, MMUs, often built-in GPUs, etc.) and are already very fast, so there's not really much point trying to compete in terms of features-per-chip or gigahertz-per-chip or instructions-per-cycle etc. at least in the first generation of a new architecture, but I've tried to improve upon them in terms of ease-of-use: The core is defined in a single Verilog file (which should basically "drop right in" to a project with any FPGA development kit), the instruction set is easier to read/write/debug in hex format, and the bus wires and bus instructions are simplified to a reasonable form which can be extended or restricted as necessary for optimised implementations.
 
 The instruction set is documented chiefly in the main Verilog file, but also under [InstructionSet.md](InstructionSet.md).
 
@@ -57,3 +57,5 @@ Alongside this I've also been working on some compilers and other tools like an 
 As for the CPU itself, additional peripherals like a memory management unit (MMU) and floating-point unit would probably be desirable and many internal optimisations are also possible. An obvious optimisation would be to reduce the number of internal stages as much as possible (closer to a conventional RISC design), but this may make it more difficult to add new instructions.
 
 The basic design should also be applicable to 32-bit implementations but this isn't included as an option in the Verilog code yet. An earlier design included an option to change the word and address size but it became more difficult to test since switching modes impacted all the testing scripts too (once the design stabilises it should be easy to add a 32-bit option).
+
+The current compromise is to use a 32-bit data and instruction bus (with 32-bit instructions) _but a 64-bit address bus, registers, ALU, etc._. This should be reasonable for most uses since the upper 32 bits of the address bus can just be ignored in hardware (i.e. if the hardware has a 32-bit external bus), whereas 32-bit fetches would be required for instructions anyway (so even on a 64-bit external bus would require some way to fetch 32-bit values). However, this compromise probably isn't perfect for any use case - for example if it's surrounded by a cache layer that layer will probably want to allow 64-bit fetches regardless of the external bus, and 64-bit fetches would probably need to be provided in software if the hardware doesn't support them; conversely - a smaller implementation would probably benefit from having 32-bit internal registers and ALU anyway regardless of external bus. A more robust solution might be to generate different variations with a program rather than to try to work all of them into a single Verilog implementation.
