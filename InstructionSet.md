@@ -1,6 +1,6 @@
-# Instruction Encoding
+# Instruction Set
 
-## Design
+## Encoding
 
 Instructions are generally categorised by the highest nibble with the nibble below that
 usually being an ALU operation or other sub-instruction. For example, to add registers you'd use 0xA1 (ALU op #1)
