@@ -1,6 +1,8 @@
 # gen1cpu
 Finally, a CPU that isn't mind-numbingly complex. (Compilers and documentation sold separately.)
 
+Implemented in Verilog and featuring an independently-designed instruction set (completely copyright-free!).
+
 ## Features
 
 * Basic integer maths
