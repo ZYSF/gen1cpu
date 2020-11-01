@@ -10,7 +10,7 @@ Implemented in Verilog and featuring an independently-designed instruction set (
 * Basic system-/user-mode functionality, complete with mode switching, invalid-instruction handling and interrupt handling
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals, TODO: test that)
 * ~Very lightweight (can fit into very cheap FPGAs and small 32-bit builds should be similar size to the smaller RISC-V cores)~ Probably isn't very small in current configuration, but can be made smaller (NOTE: Which ALU operations are included makes a huge difference to size)
-* Custom [instruction set](../blob/master/InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
+* Custom [instruction set](InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
 * ~Supports both 32-bit and 64-bit builds (instructions are always 32 bits but integer and memory operations are flexible)~ Currently only supports 64-bit builds but the instruction set itself is flexible
 * Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space (most reasonable implementations would only want between about 8 and 32 registers, but allowing special implementations to use a special number can't hurt. In the future, operating systems might support emulating different numbers of registers too, so allowing implementations to change the number only influences efficiency not ABI compatibility.)
 * Some wrappers for fitting it into a single memory bus (basic build assumes code and data buses are distinct)
@@ -48,7 +48,7 @@ The new instruction set is still somewhat similar to MIPS/RISC-V/ARM but not as 
 
 Obviously existing CPUs and MCUs have a lot of extra features (FPUs, MMUs, often built-in GPUs, etc.) and are already very fast, so there's not really much point trying to compete in terms of features-per-chip or gigahertz-per-chip or instructions-per-cycle etc. at least in the first generation of a new architecture, but I've tried to improve upon them in terms of ease-of-use: The core is defined in a single Verilog file (which should basically "drop right in" to a project with any FPGA development kit).
 
-The instruction set is documented chiefly in the main Verilog file, but also under [InstructionSet.md](../blob/master/InstructionSet.md).
+The instruction set is documented chiefly in the main Verilog file, but also under [InstructionSet.md](InstructionSet.md).
 
 ### Future Plans
 
