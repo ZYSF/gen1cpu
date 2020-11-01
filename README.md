@@ -3,7 +3,7 @@ Finally, a CPU that isn't mind-numbingly complex. (Compilers and documentation s
 
 Implemented in Verilog and featuring an independently-designed instruction set (completely copyright-free!).
 
-EDIT: I initially uploaded some of the earlier version instead of the current version. Disregard the first commits (those probably aren't in a usable state).
+EDIT: I initially uploaded some of the earlier version instead of the current version. Disregard the first commits (those probably aren't in a usable state and don't reflect my own work).
 
 ## Design
 
