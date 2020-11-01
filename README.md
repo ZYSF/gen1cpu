@@ -8,7 +8,7 @@ Finally, a CPU that isn't mind-numbingly complex. (Compilers and documentation s
 * Basic system-/user-mode functionality, complete with mode switching and interrupt handling
 * Very lightweight (can fit into very cheap FPGAs and small 32-bit builds should be similar size to the smaller RISC-V cores)
 * Custom instruction set with no proprietary tricks (as far as I know I haven't infringed on any patents or anything, and the code is PUBLIC DOMAIN)
-* Supports both 32-bit and 64-bit builds (instructions are always 32 bits)
+* Supports both 32-bit and 64-bit builds (instructions are always 32 bits but integer and memory operations are flexible)
 * Some wrappers for fitting it into a single memory bus (basic build assumes code and data buses are distinct)
 
 ## Code Overview
