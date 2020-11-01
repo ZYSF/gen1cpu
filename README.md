@@ -5,7 +5,7 @@ Implemented in Verilog and featuring an independently-designed instruction set (
 
 ## Design
 
-I originally was a bit confused by RISC-V, since it seems to be slowly taking over the world but (looking at the specs) it seems a bit half-baked and unfinished, so I started looking for alternatives to use in robotics. I'm frankly kind of surprised anyone managed to port operating systems to it because I just don't see a clear structure for that kind of stuff (it's probably starting to mature now, but I guess the buzz just started way too early).
+I originally was a bit confused by RISC-V, since it seems to be slowly taking over the world but (looking at the specs) it seems a bit half-baked and unfinished, so I started looking for alternatives to use in robotics. I'm frankly kind of surprised anyone managed to port operating systems to it because I just don't see a clear structure for that kind of stuff (it's probably starting to mature now, but I guess the buzz just started way before the ISA was finished).
 
 ARM has always been a pain in the arse (the peripheral ABIs are horrendous, the tools are terrible, etc.), x86 is an absolute mess of half-working backwards compatibility features, and alternatives like MIPS and SPARC seem to basically be dead. All are over-optimised for running 90's code and the 64-bit versions are probably all a bit hacky as a result (too many legacy/compatibility features, too many ABI versions, too many tool options, etc.). Conventional embedded chips like those used in Arduinos are fine (or at least the Arduino SDK solves most of these problems), but can't really run large/modern programs and for lower-level code typically face similar problems as other alternatives.
 
