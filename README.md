@@ -17,10 +17,12 @@ Finally, a CPU that isn't mind-numbingly complex. (Compilers and documentation s
 * Some definitions and configuration is defined in `gen1defs.v`
 * The `gen1vn.v` module is a wrapper which organises both the memory buses into a single bus ("Von-Neumann" style)
 * The `gen1vn8.v` module wraps gen1vn into single-byte memory operations (which can particularly make testing easier because a lot less pins are required)
+* The `gen1demo8.v` module is a simple top-level implementation for an FPGA with a few LED outputs and one clock input, this will just run some simple instructions and blink the LEDs
 
 ## Lacking
 
 * Documentation
 * Tools
 * Optimisations (most/all instructions take more cycles than should be strictly necessary)
+* Test cases (I have done some ad-hoc testing with Icarus Verilog and also on FPGA, but only the FPGA module is included as the other was mostly trash)
 * etc.
