@@ -3,6 +3,8 @@ Finally, a CPU that isn't mind-numbingly complex. (Compilers and documentation s
 
 Implemented in Verilog and featuring an independently-designed instruction set (completely copyright-free!).
 
+EDIT: Uh-oh, I might've lost the good version of the code and uploaded an earlier revision :s I'm working on finding the right copy...
+
 ## Design
 
 I originally was a bit confused by RISC-V, since it seems to be slowly taking over the world but (looking at the specs) it seems a bit half-baked and unfinished, so I started looking for alternatives to use in robotics. I'm frankly kind of surprised anyone managed to port operating systems to it because I just don't see a clear structure for that kind of stuff (it's probably starting to mature now, but I guess the buzz just started way before the ISA was finished). In any case, it seems to be the kind of system that mostly only makes sense to hardcore RISC idealists, who are typically absent from real-world engineering discussions (one example is the use of a hardcoded zero register - like, it "makes sense" in the context of RISC ideals, but it just doesn't make sense from a design perspective - registers and constants are totally different ideas!).
