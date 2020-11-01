@@ -3,7 +3,7 @@ Finally, a CPU that isn't mind-numbingly complex. (Compilers and documentation s
 
 Implemented in Verilog and featuring an independently-designed instruction set (completely copyright-free!).
 
-EDIT: Uh-oh, I might've lost the good version of the code and uploaded an earlier revision :s I'm working on finding the right copy...
+EDIT: I initially uploaded some of the earlier version instead of the current version. Disregard the first commits (those probably aren't in a usable state).
 
 ## Design
 
@@ -28,11 +28,8 @@ The new instruction set is still somewhat similar to MIPS/RISC-V/ARM but not as 
 
 ## Code Overview
 
-* The CPU itself is defined almost entirely in `gen1.v`
-* Some definitions and configuration is defined in `gen1defs.v`
-* The `gen1vn.v` module is a wrapper which organises both the memory buses into a single bus ("Von-Neumann" style)
-* The `gen1vn8.v` module wraps gen1vn into single-byte memory operations (which can particularly make testing easier because a lot less pins are required)
-* The `gen1demo8.v` module is a simple top-level implementation for an FPGA with a few LED outputs and one clock input, this will just run some simple instructions and blink the LEDs
+* The CPU itself is defined entirely in `SimpleCore.v`
+* The `SimpleMCU.v` module is a simple top-level implementation for an FPGA with a few LED outputs and one clock input, this will just run some simple instructions and blink the LEDs
 
 ## Lacking
 
