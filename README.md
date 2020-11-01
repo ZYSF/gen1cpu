@@ -10,7 +10,7 @@ Implemented in Verilog and featuring an independently-designed instruction set (
 * Basic system-/user-mode functionality, complete with mode switching, invalid-instruction handling and interrupt handling
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals, TODO: test that)
 * ~Very lightweight (can fit into very cheap FPGAs and small 32-bit builds should be similar size to the smaller RISC-V cores)~ Probably isn't very small in current configuration, but can be made smaller (NOTE: Which ALU operations are included makes a huge difference to size)
-* Custom instruction set with no proprietary tricks (as far as I know I haven't infringed on any patents or anything, and the code is PUBLIC DOMAIN)
+* Custom [instruction set](../blob/master/InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
 * ~Supports both 32-bit and 64-bit builds (instructions are always 32 bits but integer and memory operations are flexible)~ Currently only supports 64-bit builds but the instruction set itself is flexible
 * Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space (most reasonable implementations would only want between about 8 and 32 registers, but allowing special implementations to use a special number can't hurt. In the future, operating systems might support emulating different numbers of registers too, so allowing implementations to change the number only influences efficiency not ABI compatibility.)
 * Some wrappers for fitting it into a single memory bus (basic build assumes code and data buses are distinct)
@@ -22,7 +22,7 @@ Implemented in Verilog and featuring an independently-designed instruction set (
 
 ## Lacking
 
-* Documentation
+* Extended documentation
 * Tools
 * Optimisations (most/all instructions take more cycles than should be strictly necessary)
 * Test cases (I have done some ad-hoc testing with Icarus Verilog and also on FPGA, but only the FPGA module is included as the other was mostly trash)
@@ -44,9 +44,11 @@ Conventional embedded chips like those used in Arduinos are fine (or at least th
 
 So, I decided a simpler solution was required. Initially I hired a third-party developer who was familiar with MIPS to design a simple CPU core, and the developer completed this with minimal issues. I knew MIPS wouldn't be sufficient, especially since most versions of the instruction set aren't open-source, but I managed to use what I'd learnt from working with this developer's implementation to develop a CPU for my own instruction set. My implementation isn't nearly as fast as the original but is also designed to nicely handle edge cases such as hardware interrupts, bus errors and invalid instructions.
 
-The new instruction set is still somewhat similar to MIPS/RISC-V/ARM but not as "clever" in it's encoding, which makes developing tools and bootstrapping implementations a little easier and should also avoid infringing on any patents for such cleverness. Luckily, computers don't need to be very clever (unless you need to suck up to investors), and often encoding-level optimisations aren't critical to modern use cases (or such optimisations make more sense as extensions).
+The new instruction set is still somewhat similar to MIPS/RISC-V/ARM but not as "clever" in it's encoding, which makes developing tools and bootstrapping implementations a little easier and should also avoid infringing on any copyright (or worse, patents) for such cleverness. Luckily, computers don't need to be very clever (unless you need to suck up to investors), and often encoding-level optimisations aren't critical to modern use cases (or such optimisations make more sense as extensions). Using simpler encodings also allows them to be made slightly more memorable and easier to encode/decode by humans, which helps for the purposes of developing and debugging low-level code. 
 
-Obviously existing CPUs and MCUs (microcontroller = CPU + some basic I/O peripherals) have a lot of extra features (FPUs, MMUs, often built-in GPUs, etc.) and are already very fast, so there's not really much point trying to compete in terms of features-per-chip or gigahertz-per-chip or instructions-per-cycle etc. at least in the first generation of a new architecture, but I've tried to improve upon them in terms of ease-of-use: The core is defined in a single Verilog file (which should basically "drop right in" to a project with any FPGA development kit).
+Obviously existing CPUs and MCUs have a lot of extra features (FPUs, MMUs, often built-in GPUs, etc.) and are already very fast, so there's not really much point trying to compete in terms of features-per-chip or gigahertz-per-chip or instructions-per-cycle etc. at least in the first generation of a new architecture, but I've tried to improve upon them in terms of ease-of-use: The core is defined in a single Verilog file (which should basically "drop right in" to a project with any FPGA development kit).
+
+The instruction set is documented chiefly in the main Verilog file, but also under [InstructionSet.md](../blob/master/InstructionSet.md).
 
 ### Future Plans
 
