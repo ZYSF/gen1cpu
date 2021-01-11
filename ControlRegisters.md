@@ -1,8 +1,8 @@
 # Control Register/Coprocessor Interface
 
-By default, these can only be accessed (directly) from system mode.
+By default, these can only be accessed directly from system mode.
 
-Of course, an optimised implementation could allow access to some "safe" ones directly from user mode (but otherwise this can be emulated case-by-case by trapping in system mdoe).
+Of course, an optimised implementation could allow access to some "safe" ones directly from user mode (but otherwise this can be emulated case-by-case by trapping the instructions anyway).
 
 ## CTRL_CPUID (0)
 
@@ -16,9 +16,16 @@ This control register will provide the last exception number.
 
 This control register will reveal information about the current CPU state, such as whether it's in system mode (which will always be true if you can read the control register!) and whether exceptions are enabled.
 
+* Sysmode (lowest bit) determines whether the program is running in system mode (if set) or user mode (if clear)
+* Excnenable (second-lowest bit) determines whether exceptions are enabled (this would generally be set except during setup or mode switching)
+* Tmxenable (third-lowest bit) determines whether timer exceptions are enabled (if this is clear they will just be ignored)
+* Hwxenable (fourth-lowest bit) determines whether external hardware exceptions are enabled (if this is clear they will just be ignored)
+
 ## CTRL_MIRRORFLAGS (3)
 
 This is the "mirror" of the flags register, which gets swapped with the flags register during a mode switch.
+
+In order to set specific flags, you have to apply them to the mirrorflags control register first and then perform the mode-switch to apply them.
 
 ## CTRL_XADDR (4)
 
@@ -27,6 +34,8 @@ This is the exception address, which is jumped to when an error occurs.
 ## CTRL_MIRRORXADDR (5)
 
 This is the "mirror" of the exception address.
+
+When the exception handler is called, this will be set to the instruction at which the exception took place, and when returning from a system call this is where the program counter is taken from. This means that to skip an instruction (e.g. if it's a system call) rather than perform that operation (e.g. if it was interrupted by the timer) you will need to add 4 to this register before returning.
 
 ## CTRL_TIMER0 (6)
 
@@ -50,6 +59,8 @@ When writing to the timer control register, the format is different. Flags are s
 * Sleep (fourth-lowest bit) will disable the dingdong flag.
 
 The values for the alarm and forget thresholds are specified in 4 bits each from the 8th and 16th bits, with the resulting values being 16 left-shifted by the value of the respective bits.
+
+Note that when handling a timer exception (i.e. if it's enabled and a dingdong occurs) the processor will automatically disable the dingdong.
 
 ## (TODO?) CTRL_TIMER1 (7)
 
