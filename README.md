@@ -56,6 +56,16 @@ Obviously existing CPUs and MCUs have a lot of extra features (FPUs, MMUs, often
 
 The instruction set is documented chiefly in the main Verilog file, but also under [InstructionSet.md](InstructionSet.md).
 
+## Why So Many Registers?
+
+Actually, a few reasons.
+
+1. Using an encoding of either 16 or 256 registers makes the instructions easier to read (and if there's free space anyway - why not just use it to allow 256 registers? on the other hand in some instructions we only allow the lower 16 to be used anyway, so it's not like we're really wasting any encoding space)
+2. If anyone is like "nah this other CPU architecture is faster" I can be like "well, in theory... this architecture could do the same thing with less memory reads/writes, so, in theory..." (in other words, more registers gives a natural speed advantage, but there are tradeoffs in space and power usage meaning you might not want too many in hardware)
+3. It allows for future implementations to have more flexibility over registers. For example, the operating system might want to define which registers are enabled/disabled in software so that it can cache things more efficiently, or an application might want to keep one register holding a "context" value at all times for debugging or to simplify some API internals.
+
+As for standardisation, however, a program can generally assume that there are at least four working registers, and that in a high-level environment higher registers may be accessible anyway (but may not be as fast as lower registers, since they might be emulated or controlled for security/multitasking purposes).
+
 ### Future Plans
 
 Alongside this I've also been working on some compilers and other tools like an assembler and a linker, but these still aren't quite usable yet (or at least don't fit together as a set yet) and some of them will probably need to be rewritten for release. So there's a bit more of an ecosystem than just the CPU, at least in prototype form, but as to whether it will all come together as a usable platform in the future I can't give any guarantees yet.
