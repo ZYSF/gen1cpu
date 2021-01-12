@@ -1,13 +1,13 @@
 # gen1cpu
 Finally, a CPU that isn't mind-numbingly complex. Batteries sold separately.
 
-Implemented in Verilog and featuring an independently-designed instruction set (completely copyright-free!).
+Implemented in Verilog and featuring an custom-designed instruction set (completely copyright-free!).
 
 ## Features
 
 * Basic integer maths
 * Basic control flow (decision-making, looping and function calls)
-* Basic system-/user-mode functionality, complete with mode switching, invalid-instruction handling and interrupt handling
+* Basic system-mode/user-mode functionality, complete with mode switching, invalid-instruction handling and interrupt handling
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals, TODO: test that)
 * Reasonably lightweight (may not fit on all embedded FPGAs but should on recent/mid-range ones)
 * Custom [instruction set](InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
@@ -18,13 +18,19 @@ Implemented in Verilog and featuring an independently-designed instruction set (
 * The CPU itself is defined entirely in `SimpleCore.v`
 * The `SimpleMCU.v` module is a simple top-level implementation for an FPGA with a few LED outputs and one clock input, this will just run some simple instructions and blink the LEDs
 
+## Documentation
+
+* [Instruction Set](InstructionSet.md) documents the semantics and encoding of each of the standard instructions.
+* [Control Registers](ControlRegisters.md) documents the meanings, encodings and indices of the control registers.
+* [Modes & Exceptions](ModesAndExceptions.md) documents the user-mode/system-mode switching and the meanings of the exception codes.
+
 ## Lacking
 
-* Extended documentation
 * Tools
 * FPU (could be implemented by extending the control functions, but would likely take up a lot of FPGA space)
 * MMU (could possibly be implemented over the current bus though)
-* Optimisations (most/all instructions take more cycles than should be strictly necessary)
+* Optimisation of existing instructions (most/all instructions take more cycles than should be strictly necessary)
+* Addition of optimised instructions (e.g. you can already read an 8-bit or 64-bit value from memory, but it will currently take more instructions than just reading a 32-bit value)
 * Test cases (I have done some ad-hoc testing, initially with Icarus Verilog and also on FPGA, but only the FPGA module is included as I mostly trashed the other one while learning Verilog)
 * etc.
 
@@ -54,7 +60,7 @@ The instruction set is documented chiefly in the main Verilog file, but also und
 
 Alongside this I've also been working on some compilers and other tools like an assembler and a linker, but these still aren't quite usable yet (or at least don't fit together as a set yet) and some of them will probably need to be rewritten for release. So there's a bit more of an ecosystem than just the CPU, at least in prototype form, but as to whether it will all come together as a usable platform in the future I can't give any guarantees yet.
 
-As for the CPU itself, additional peripherals like a memory management unit (MMU) and floating-point unit would probably be desirable and many internal optimisations are also possible. An obvious optimisation would be to reduce the number of internal stages as much as possible (closer to a conventional RISC design), but this may make it more difficult to add new instructions.
+As for the CPU itself, additional peripherals like a memory management unit (MMU) and floating-point unit (FPU) would probably be desirable and many internal optimisations are also possible. An obvious optimisation would be to reduce the number of internal stages as much as possible (closer to a conventional RISC design), but this may make it more difficult to add new instructions.
 
 The basic design should also be applicable to 32-bit implementations but this isn't included as an option in the Verilog code yet. An earlier design included an option to change the word and address size but it became more difficult to test since switching modes impacted all the testing scripts too (once the design stabilises it should be easy to add a 32-bit option).
 
