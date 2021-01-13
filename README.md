@@ -24,9 +24,14 @@ Implemented in Verilog and featuring an custom-designed instruction set (complet
 * [Control Registers](ControlRegisters.md) documents the meanings, encodings and indices of the control registers.
 * [Modes & Exceptions](ModesAndExceptions.md) documents the user-mode/system-mode switching and the meanings of the exception codes.
 
-## Lacking
+## Tools
 
-* Tools
+* [ZAsm](https://github.com/ZYSF/ZAsm/) a simple but flexible assembler which supports the new instruction set.
+* [ZLink](https://github.com/ZYSF/ZLink/) a linker which can produce flat binaries from the assembled code.
+
+## TODO
+
+* More advanced tools (work-in-progress...)
 * FPU (could be implemented by extending the control functions, but would likely take up a lot of FPGA space)
 * MMU (could possibly be implemented over the current bus though)
 * Optimisation of existing instructions (most/all instructions take more cycles than should be strictly necessary)
