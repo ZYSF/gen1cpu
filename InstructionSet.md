@@ -1,5 +1,31 @@
 # Instruction Set
 
+## Basic Design
+
+Hopefull the instructions here should be just enough (but not too much) to start getting complex software running. Beyond that, there are a lot of optimisations and customisations which could be made (ideally within the framework of the core design).
+
+The instruction set has a few similarities to RISC-like designs (such as MIPS, ARM or RISC-V):
+
+* There isn't a special instruction for everything, everything's based on a more generalised set of instructions (this means some kinds of instructions often have some obscure secondary uses)
+* Instructions are stored in a somewhat-simplified and categorical format (i.e. each instruction is the same size)
+* Particularly inefficient or error-prone things like memory access are (ideally) limited to only a few instructions
+
+But there are also some differences:
+
+* The instructions don't imply any kind of uniform timing constraints (in other words, more complex/compound instructions can be added provided that they follow exception-handling constraints)
+* Stability and extensibility are prioritised over efficiency
+* The standard instructions rarely have complex/optimised options (or when they do, they're usually organised as specific sub-operations rather than e.g. as flags)
+* Instruction parts are aligned to hex-friendly borders (instead of using e.g. 3 bits for this and 9 bits for that, almost everything is 4/8/16-bits)
+* Register encoding is not perfectly uniform (instead of allowing e.g. 32 general-purpose registers everywhere, we allow up to 256 for some operations but only 16 for others)
+* *Plenty* of space has been intentionally left for customised instructions
+* Mode-switching functionality and timers are part of the core design (that is, it's a minimalist instruction set but not necessarily a minimalist platform)
+
+And some implications:
+
+* The encoded instructions are easier to decode by humans (e.g. in the course of debugging some program), for example (in hex format) the generalised ALU operations all start with an `A`.
+* Because instructions don't have complex options and decode to conveniently-sized parts, it can be more-efficiently emulated on other devices 
+* The ability to address up to 256 registers (on an ideal implementation) is perfect for when you need to do a whole bunch of cryptography without any RAM or MMU or cache circuitry spying on you
+
 ## Encoding
 
 Instructions are generally categorised by the highest nibble with the nibble below that
@@ -19,98 +45,164 @@ and up to 16 in instructions with more bits reserved for immediate values.
 
 ### Syscall
 
-  OP_SYSCALL		8'h00	// 0x00??????: invalid instruction, but reserved for encoding system calls
+  OP_SYSCALL		0x00
+
+  0x00??????: ???
+
+Invalid instruction, but reserved for encoding system calls.
 
 ### Addimm
 
-  OP_ADDIMM			8'h11	// 0x11abiiii: a=b+i; // NOTE: Can only access lower 16 registers due to encoding
+  OP_ADDIMM			0x11
+  
+  0x11abiiii: a=b+i;
+
+NOTE: Can only access lower 16 registers due to encoding.
   
 ### Add
 
-  OP_ADD				8'hA1	// 0xA1aabbcc: a=b+c; // NOTE: Encoding allows up to 256 registers, but higher ones might be disabled
+  OP_ADD				0xhA1
+  
+  0xA1aabbcc: a=b+c;
+
+NOTE: Encoding allows up to 256 registers, but higher ones might be disabled.
 
 ### Sub
 
-  OP_SUB				8'hA2	// 0xA2aabbcc: a=b-c;
+  OP_SUB				0xA2
+  
+  0xA2aabbcc: a=b-c;
 
 ### And
 
-  OP_AND				8'hA3
+  OP_AND				0xhA3
   
 ### Or
-  OP_OR				8'hA4
+  OP_OR				0xA4
 
 ### Xor
   
-  OP_XOR				8'hA5
+  OP_XOR				0xA5
 
 ### Shl (shift left)
 
-  OP_SHL				8'hA6
+  OP_SHL				0xA6
 
 ### Shrz (shift right, with zero used for any assumed high bits)
 
-  OP_SHRZ			8'hA7
+  OP_SHRZ			0xA7
 
 ### Shrs (shift right, with the sign bit used for any assumed high bits)
 
-  OP_SHRS			8'hA8
+  OP_SHRS			0xA8
 
 ### Blink (branch-link, stores the return address as the following instruction but doesn't do the actual branch)
 
-  OP_BLINK			8'hB1	// 0xB1aaxxxx: a = pc + 4;
+  OP_BLINK			0xB1
+  
+  0xB1aaxxxx: a = pc + 4;
+  
+This instruction can be used to calculate code-relative addresses if necessary.
 
 ### Bto (branch-to, as in a simple goto using a register as the target)
 
-  OP_BTO				8'hB2	// 0xB2xxxxcc: npc = c;
+  OP_BTO				0xB2
+  
+  0xB2xxxxcc: npc = c;
 
 ### Be (branch-enter, stores the return address and branch to somewhere)
 
-  OP_BE				8'hB3 // 0xB3aaxxcc: a = pc + 4; npc = c; // This is short for branch-and-enter
+  OP_BE				8'hB3
+  
+  0xB3aaxxcc: a = pc + 4; npc = c;
 
-### Before (this is basically the mode-switching routine)
+This is short for branch-and-enter.
 
-  OP_BEFORE			8'hB4 // 0xB4xxxxxx: npc = before; nflags = mirrorflags; nmirrorflags = flags; nbefore = mirrorbefore; nmirrorbefore = before;
+### Before (for explicit mode-switching)
+
+  OP_BEFORE			0xB4
+  
+  0xB4xxxxxx: npc = before; nflags = mirrorflags; nmirrorflags = flags; nbefore = mirrorbefore; nmirrorbefore = before;
+
+Mode-switching (whether explicit or caused by an exception or interrupt) mostly involves swapping out some important context information for mirror copies. That is, the code which is currently running has it's own copy, and when the mode is switched, some different code starts executing with a different copy of the context information.
+
+The important part here is that we're never left in-between contexts or part-way-through an instruction (the switching itself all happens within the space of one instruction, whether under explicit or exceptional circumstances). The switching should do just enough to allow a control routine to handle the situation properly (or just enough to return control back to the normal program) but shouldn't do too much that it becomes inefficient (for example, there's no need to automatically save/restore all the general-purpose registers).
 
 ### Bait (enters a trap)
 
-  OP_BAIT			8'hB8 // 0xB8xxxxxx: invalid instruction, but reserved for traps.
+  OP_BAIT			0xB8
+  
+  0xB8xxxxxx: ???
+  
+Invalid instruction, but reserved for traps.
 
-### Ctrlin64 (for co/processor info)
+### Ctrlin64 (read co/processor info)
 
-  OP_CTRLIN64		8'hC3	// 0xC3abiiii: a=ctrl[b+i];
+  OP_CTRLIN64		0xC3
+  
+  0xC3abiiii: a=ctrl[b+i];
 
-### Ctrlout64 (for co/processor info)
+Control registers (which are used for internal circuits like the timer) are accessed similarly to the memory interface, except that the size of values always corresponds to the internal register size and control registers are indexed counting in 1 rather than word sizes (ensuring there is never any ambiguity about the basic operations).
 
-  OP_CTRLOUT64		8'hCB	// 0xCBbciiii: ctrl[b+i]=c;
+### Ctrlout64 (read co/processor info)
 
-### Read32 (for memory)
+  OP_CTRLOUT64		0xCB
+  
+  0xCBbciiii: ctrl[b+i]=c;
 
-  OP_READ32			8'hD2 // 0xD2abiiii: a=data[b+i];
+### Read32 (read data memory)
 
-### Write32 (for memory)
+  OP_READ32			0xD2
+  
+  0xD2abiiii: a=data[b+i];
 
-  OP_WRITE32		8'hDA	// 0xDAbciiii: data[b+i]=c;
+The standard memory bus allows for 64-bit addresses but only handles 32 bits of data at a time.
 
-### In32 (for I/O)
+Implementations may provide specialised instructions and/or specialised hardware interfaces for dealing with other sizes, but as a standard 32-bit reads/writes are probably the most practical.
 
-  OP_IN32			8'hE2	// 0xE2abiiii: a=ext[b+i];
+Implementations can also either ignore or raise errors if the higher/lower bits of the addresses are not what they expect, or more generally if the address is protected or just beyond memory (this generally means that read/write addresses should be multiples of four, and that any unused higher bits should be left as zero).
 
-### Out32 (for I/O)
+### Write32 (write data memory)
 
-  OP_OUT32			8'hEA	// 0xEAbciiii: ext[b+i]=c;
+  OP_WRITE32		0xDA
+  
+  0xDAbciiii: data[b+i]=c;
+
+### In32 (read I/O)
+
+  OP_IN32			0xE2
+  
+  0xE2abiiii: a=ext[b+i];
+  
+The I/O bus operates *exactly* like the memory bus, except it's the I/O bus.
+
+In other words, it's just like a secondary channel of memory, except that it could be implemented entirely separately to memory so I/O devices can't overhear any memory stuff and memory devices can't overhear any I/O stuff.
+
+This is also the case for the instruction bus (which would typically match the memory bus but not necessarily). For the sake of simplicity, the current interface shares a single set of data/address wires, but the design allows for more-secured or more-optimised implementations to bypass the normal "data memory" bus entirely for both code and I/O operations.
+
+### Out32 (write I/O)
+
+  OP_OUT32			0xEA
+  
+  0xEAbciiii: ext[b+i]=c;
 
 ### Ifabove (for conditional branching comparing unsigned integers)
 
-  OP_IFABOVE		8'hFA	// 0xFAbciiii: if((unsigned) b > (unsigned) c){npc = (pc & (-1 << 18)) | (i<<2);}
+  OP_IFABOVE		0xFA
+  
+  0xFAbciiii: if((unsigned) b > (unsigned) c){npc = (pc & (-1 << 18)) | (i<<2);}
 
 ### Ifbelow (for conditional branching comparing signed integers)
 
-  OP_IFBELOWS		8'hFB // 0xFBbciiii: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
+  OP_IFBELOWS		0xFB
+  
+  0xFBbciiii: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
 
 ### Ifequals (for conditional branching based on bit-equality)
 
-  OP_IFEQUALS		8'hFE	// 0xFEbciiii: if(b == c){npc = pc + (i<<2);}
+  OP_IFEQUALS		0xFE
+  
+  0xFEbciiii: if(b == c){npc = pc + (i<<2);}
 
 ## Enhancements Which May Be Needed
 
