@@ -11,7 +11,7 @@ Implemented in Verilog and featuring a custom-designed instruction set (complete
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals, TODO: test that)
 * Reasonably lightweight (may not fit on all embedded FPGAs but should on recent/mid-range ones)
 * Custom [instruction set](InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
-* Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space (most reasonable implementations would only want between about 8 and 32 registers, but allowing special implementations to use a special number can't hurt. In the future, operating systems might support emulating different numbers of registers too, so allowing implementations to change the number only influences efficiency not ABI compatibility.)
+* Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space
 
 ## Code Overview
 
