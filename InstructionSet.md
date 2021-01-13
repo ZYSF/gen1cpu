@@ -39,7 +39,7 @@ NOTE: Can only access lower 16 registers due to encoding.
   
     0xA1aabbcc: a=b+c;
 
-NOTE: Encoding allows up to 256 registers, but higher ones might be disabled.
+This encoding (which is shared for most other basic math operations) allows up to 256 registers, but higher ones might be disabled.
 
 ### Sub
 
@@ -111,7 +111,7 @@ The important part here is that we're never left in-between contexts or part-way
   
     0xB8xxxxxx: ???
   
-Invalid instruction, but reserved for traps. (That is, if a debugger replaces an instruction with a special one to trigger an exception back into the debugger, then it will probably be one of these instructions.
+Invalid instruction, but reserved for traps. That is, if a debugger replaces an instruction with a special one to trigger an exception back into the debugger, then it will probably be one of these instructions.
 
 ### Ctrlin64 (read co/processor info)
 
@@ -133,7 +133,7 @@ Control registers (which are used for internal circuits like the timer) are acce
   
     0xD2abiiii: a=data[b+i];
 
-The standard memory bus allows for 64-bit addresses but only handles 32 bits of data at a time.
+The standard memory bus allows for 64-bit addresses but only handles 32 bits of data at a time. When reading a value (into a 64-bit register), it is *not* sign-extended (TODO: Test this).
 
 Implementations may provide specialised instructions and/or specialised hardware interfaces for dealing with other sizes, but as a standard 32-bit reads/writes are probably the most practical.
 
@@ -151,7 +151,7 @@ Implementations can also either ignore or raise errors if the higher/lower bits 
   
     0xE2abiiii: a=ext[b+i];
   
-The I/O bus operates *exactly* like the memory bus, except it's the I/O bus.
+The I/O bus operates *exactly* like the memory bus, except it's the I/O bus, and it can only be accessed from system-mode (unless an implementation has a special feature to expose part of it to user-mode).
 
 In other words, it's just like a secondary channel of memory, except that it could be implemented entirely separately to memory so I/O devices can't overhear any memory stuff and memory devices can't overhear any I/O stuff.
 
