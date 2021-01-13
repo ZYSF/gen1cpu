@@ -111,3 +111,11 @@ and up to 16 in instructions with more bits reserved for immediate values.
 ### Ifequals (for conditional branching based on bit-equality)
 
   OP_IFEQUALS		8'hFE	// 0xFEbciiii: if(b == c){npc = pc + (i<<2);}
+
+## Enhancements Which May Be Needed
+
+* Particularly to run C programs smoothly, optimised 64-bit memory operations would be handy. In some other cases too there are common sequences which could be replaced with single instructions designed for those uses.
+* Semantics of loading smaller values also need to be clarified (particularly at which points sign extension happens).
+* For system code, an additional control register or two just for storing cached pointers (e.g. to the task structure) would be helpful.
+* There are probably some other cases where common code sequences can be replaced with a single optimised instruction.
+* Floating point support would be generally helpful (especially for porting C programs).
