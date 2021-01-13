@@ -28,6 +28,7 @@ Implemented in Verilog and featuring a custom-designed instruction set (complete
 
 * [ZAsm](https://github.com/ZYSF/ZAsm/) a simple but flexible assembler which supports the new instruction set.
 * [ZLink](https://github.com/ZYSF/ZLink/) a linker which can produce flat binaries from the assembled code.
+* A C compiler is also in development.
 
 ## TODO
 
@@ -69,11 +70,11 @@ Actually, a few reasons.
 2. If anyone is like "nah this other CPU architecture is faster" I can be like "well, in theory... this architecture could do the same thing with less memory reads/writes, so, in theory..." (in other words, more registers gives a natural speed advantage, but there are tradeoffs in space and power usage meaning you might not want too many in hardware)
 3. It allows for future implementations to have more flexibility over registers. For example, the operating system might want to define which registers are enabled/disabled in software so that it can cache things more efficiently, or an application might want to keep one register holding a "context" value at all times for debugging or to simplify some API internals.
 
-As for standardisation, however, a program can generally assume that there are at least four working registers, and that in a high-level environment higher registers may be accessible anyway (but may not be as fast as lower registers, since they might be emulated or controlled for security/multitasking purposes).
+As for standardisation, however, a program can generally assume that there are at least four working registers, and that in a high-level environment higher registers may be accessible anyway (but may not be as fast as lower registers, since they might be emulated or controlled for security/multitasking purposes). For C tools, I'm currently assuming there are 16 registers but limiting usage of those beyond `$r7`.
 
 ### Future Plans
 
-Alongside this I've also been working on some compilers and other tools like an assembler and a linker, but these still aren't quite usable yet (or at least don't fit together as a set yet) and some of them will probably need to be rewritten for release. So there's a bit more of an ecosystem than just the CPU, at least in prototype form, but as to whether it will all come together as a usable platform in the future I can't give any guarantees yet.
+Most updates at the moment are happening in the tools, particularly bootstrapping C (which will probably take a bit more fine tuning).
 
 As for the CPU itself, additional peripherals like a memory management unit (MMU) and floating-point unit (FPU) would probably be desirable and many internal optimisations are also possible. An obvious optimisation would be to reduce the number of internal stages as much as possible (closer to a conventional RISC design), but this may make it more difficult to add new instructions.
 
