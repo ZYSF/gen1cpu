@@ -1,31 +1,5 @@
 # Instruction Set
 
-## Basic Design
-
-Hopefull the instructions here should be just enough (but not too much) to start getting complex software running. Beyond that, there are a lot of optimisations and customisations which could be made (ideally within the framework of the core design).
-
-The instruction set has a few similarities to RISC-like designs (such as MIPS, ARM or RISC-V):
-
-* There isn't a special instruction for everything, everything's based on a more generalised set of instructions (this means some kinds of instructions often have some obscure secondary uses)
-* Instructions are stored in a somewhat-simplified and categorical format (i.e. each instruction is the same size)
-* Particularly inefficient or error-prone things like memory access are (ideally) limited to only a few instructions
-
-But there are also some differences:
-
-* The instructions don't imply any kind of uniform timing constraints (in other words, more complex/compound instructions can be added provided that they follow exception-handling constraints)
-* Stability and extensibility are prioritised over efficiency
-* The standard instructions rarely have complex/optimised options (or when they do, they're usually organised as specific sub-operations rather than e.g. as flags)
-* Instruction parts are aligned to hex-friendly borders (instead of using e.g. 3 bits for this and 9 bits for that, almost everything is 4/8/16-bits)
-* Register encoding is not perfectly uniform (instead of allowing e.g. 32 general-purpose registers everywhere, we allow up to 256 for some operations but only 16 for others)
-* *Plenty* of space has been intentionally left for customised instructions
-* Mode-switching functionality and timers are part of the core design (that is, it's a minimalist instruction set but not necessarily a minimalist platform)
-
-And some implications:
-
-* The encoded instructions are easier to decode by humans (e.g. in the course of debugging some program), for example (in hex format) the generalised ALU operations all start with an `A`.
-* Because instructions don't have complex options and decode to conveniently-sized parts, it can be more-efficiently emulated on other devices 
-* The ability to address up to 256 registers (on an ideal implementation) is perfect for when you need to do a whole bunch of cryptography without any RAM or MMU or cache circuitry spying on you
-
 ## Encoding
 
 Instructions are generally categorised by the highest nibble with the nibble below that
@@ -45,84 +19,87 @@ and up to 16 in instructions with more bits reserved for immediate values.
 
 ### Syscall
 
-  OP_SYSCALL		0x00
+    OP_SYSCALL		0x00
 
-  0x00??????: ???
+    0x00??????: ???
 
 Invalid instruction, but reserved for encoding system calls.
 
 ### Addimm
 
-  OP_ADDIMM			0x11
+    OP_ADDIMM			0x11
   
-  0x11abiiii: a=b+i;
+    0x11abiiii: a=b+i;
 
 NOTE: Can only access lower 16 registers due to encoding.
   
 ### Add
 
-  OP_ADD				0xhA1
+    OP_ADD				0xhA1
   
-  0xA1aabbcc: a=b+c;
+    0xA1aabbcc: a=b+c;
 
 NOTE: Encoding allows up to 256 registers, but higher ones might be disabled.
 
 ### Sub
 
-  OP_SUB				0xA2
+    OP_SUB				0xA2
   
-  0xA2aabbcc: a=b-c;
+    0xA2aabbcc: a=b-c;
 
 ### And
 
-  OP_AND				0xhA3
+    OP_AND				0xhA3
   
 ### Or
-  OP_OR				0xA4
+  
+    OP_OR				0xA4
 
 ### Xor
   
-  OP_XOR				0xA5
+    OP_XOR				0xA5
 
 ### Shl (shift left)
 
-  OP_SHL				0xA6
+    OP_SHL				0xA6
 
 ### Shrz (shift right, with zero used for any assumed high bits)
 
-  OP_SHRZ			0xA7
+    OP_SHRZ			0xA7
 
 ### Shrs (shift right, with the sign bit used for any assumed high bits)
 
-  OP_SHRS			0xA8
+    OP_SHRS			0xA8
 
-### Blink (branch-link, stores the return address as the following instruction but doesn't do the actual branch)
+### Blink (branch-link, stores the return address as though branching but doesn't do the actual branch)
 
-  OP_BLINK			0xB1
+    OP_BLINK			0xB1
   
-  0xB1aaxxxx: a = pc + 4;
+    0xB1aaxxxx: a = pc + 4;
   
-This instruction can be used to calculate code-relative addresses if necessary.
+This instruction can be used to get a basis for calculating code-relative addresses if necessary.
 
 ### Bto (branch-to, as in a simple goto using a register as the target)
 
-  OP_BTO				0xB2
+    OP_BTO				0xB2
   
-  0xB2xxxxcc: npc = c;
+    0xB2xxxxcc: npc = c;
+
+This instruction just branches to the location in the given register.
 
 ### Be (branch-enter, stores the return address and branch to somewhere)
 
-  OP_BE				8'hB3
+    OP_BE				0xB3
   
-  0xB3aaxxcc: a = pc + 4; npc = c;
+    0xB3aaxxcc: a = pc + 4; npc = c;
 
 This is short for branch-and-enter.
 
 ### Before (for explicit mode-switching)
 
-  OP_BEFORE			0xB4
+    OP_BEFORE			0xB4
   
-  0xB4xxxxxx: npc = before; nflags = mirrorflags; nmirrorflags = flags; nbefore = mirrorbefore; nmirrorbefore = before;
+    0xB4xxxxxx: npc = before; nflags = mirrorflags; nmirrorflags = flags; nbefore = mirrorbefore; nmirrorbefore = before;
 
 Mode-switching (whether explicit or caused by an exception or interrupt) mostly involves swapping out some important context information for mirror copies. That is, the code which is currently running has it's own copy, and when the mode is switched, some different code starts executing with a different copy of the context information.
 
@@ -130,31 +107,31 @@ The important part here is that we're never left in-between contexts or part-way
 
 ### Bait (enters a trap)
 
-  OP_BAIT			0xB8
+    OP_BAIT			0xB8
   
-  0xB8xxxxxx: ???
+    0xB8xxxxxx: ???
   
-Invalid instruction, but reserved for traps.
+Invalid instruction, but reserved for traps. (That is, if a debugger replaces an instruction with a special one to trigger an exception back into the debugger, then it will probably be one of these instructions.
 
 ### Ctrlin64 (read co/processor info)
 
-  OP_CTRLIN64		0xC3
+    OP_CTRLIN64		0xC3
   
-  0xC3abiiii: a=ctrl[b+i];
+    0xC3abiiii: a=ctrl[b+i];
 
 Control registers (which are used for internal circuits like the timer) are accessed similarly to the memory interface, except that the size of values always corresponds to the internal register size and control registers are indexed counting in 1 rather than word sizes (ensuring there is never any ambiguity about the basic operations).
 
 ### Ctrlout64 (read co/processor info)
 
-  OP_CTRLOUT64		0xCB
+    OP_CTRLOUT64		0xCB
   
-  0xCBbciiii: ctrl[b+i]=c;
+    0xCBbciiii: ctrl[b+i]=c;
 
 ### Read32 (read data memory)
 
-  OP_READ32			0xD2
+    OP_READ32			0xD2
   
-  0xD2abiiii: a=data[b+i];
+    0xD2abiiii: a=data[b+i];
 
 The standard memory bus allows for 64-bit addresses but only handles 32 bits of data at a time.
 
@@ -164,15 +141,15 @@ Implementations can also either ignore or raise errors if the higher/lower bits 
 
 ### Write32 (write data memory)
 
-  OP_WRITE32		0xDA
+    OP_WRITE32		0xDA
   
-  0xDAbciiii: data[b+i]=c;
+    0xDAbciiii: data[b+i]=c;
 
 ### In32 (read I/O)
 
-  OP_IN32			0xE2
+    OP_IN32			0xE2
   
-  0xE2abiiii: a=ext[b+i];
+    0xE2abiiii: a=ext[b+i];
   
 The I/O bus operates *exactly* like the memory bus, except it's the I/O bus.
 
@@ -182,27 +159,31 @@ This is also the case for the instruction bus (which would typically match the m
 
 ### Out32 (write I/O)
 
-  OP_OUT32			0xEA
+    OP_OUT32			0xEA
   
-  0xEAbciiii: ext[b+i]=c;
+    0xEAbciiii: ext[b+i]=c;
 
 ### Ifabove (for conditional branching comparing unsigned integers)
 
-  OP_IFABOVE		0xFA
+    OP_IFABOVE		0xFA
   
-  0xFAbciiii: if((unsigned) b > (unsigned) c){npc = (pc & (-1 << 18)) | (i<<2);}
+    0xFAbciiii: if((unsigned) b > (unsigned) c){npc = (pc & (-1 << 18)) | (i<<2);}
+
+Conditionals use the constant in a special way (TODO: This isn't handled properly in the assembler yet!). All 16 bits replace the third to eightenth bits of the existing program counter, meaning they can target anywhere within the same 256 kilobyte-aligned space.
 
 ### Ifbelow (for conditional branching comparing signed integers)
 
-  OP_IFBELOWS		0xFB
+    OP_IFBELOWS		0xFB
   
-  0xFBbciiii: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
+    0xFBbciiii: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
 
 ### Ifequals (for conditional branching based on bit-equality)
 
-  OP_IFEQUALS		0xFE
+    OP_IFEQUALS		0xFE
   
-  0xFEbciiii: if(b == c){npc = pc + (i<<2);}
+    0xFEbciiii: if(b == c){npc = (pc & (-1 << 18)) | (i<<2);}
+
+This can also be used for unconditional jumps to local addresses (since any register always equals itself).
 
 ## Enhancements Which May Be Needed
 
