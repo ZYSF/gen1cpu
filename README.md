@@ -1,7 +1,7 @@
 # gen1cpu
 Finally, a CPU that isn't mind-numbingly complex. Batteries sold separately.
 
-Implemented in Verilog and featuring an custom-designed instruction set (completely copyright-free!).
+Implemented in Verilog and featuring a custom-designed instruction set (completely copyright-free!).
 
 ## Features
 
