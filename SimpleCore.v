@@ -103,9 +103,13 @@
 `define OP_CTRLIN64		8'hC3	// 0xC3abiiii: a=ctrl[b+i];
 `define OP_CTRLOUT64		8'hCB	// 0xCBbciiii: ctrl[b+i]=c;
 `define OP_READ32			8'hD2 // 0xD2abiiii: a=data[b+i];
+`define OP_READ32H		8'hD6
 `define OP_WRITE32		8'hDA	// 0xDAbciiii: data[b+i]=c;
+`define OP_WRITE32H		8'hDE
 `define OP_IN32			8'hE2	// 0xE2abiiii: a=ext[b+i];
+`define OP_IN32H			8'hE6
 `define OP_OUT32			8'hEA	// 0xEAbciiii: ext[b+i]=c;
+`define OP_OUT32H			8'hEE
 `define OP_IFABOVE		8'hFA	// 0xFAbciiii: if((unsigned) b > (unsigned) c){npc = (pc & (-1 << 18)) | (i<<2);}
 `define OP_IFBELOWS		8'hFB // 0xFBbciiii: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
 `define OP_IFEQUALS		8'hFE	// 0xFEbciiii: if(b == c){npc = pc + (i<<2);}
@@ -135,7 +139,8 @@
 `define CTRL_MIRRORFLAGS	4'h3
 `define CTRL_XADDR			4'h4
 `define CTRL_MIRRORXADDR	4'h5
-`define CTRL_TIMER			4'h6
+`define CTRL_TIMER0			4'h6
+`define CTRL_SYSTEM0			4'h8  // This one has no hard-coded purpose. It's mostly designed for holding task info in an operating system.
 
 `define EXCN_BADDOG			1		// Unable to fetch instruction (i.e. bad instruction address or fatal bus error)
 `define EXCN_INVALIDINSTR	2		// Instruction was fetched but not recognised as valid by the decoder
@@ -173,7 +178,7 @@
  */
 `define CPUIDVALUE				64'h5A59534600000107
 
-module SimpleDecoder(/*decodeclk, */ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, getpc, setpc, blink, bto, bswitch, bif);
+module SimpleDecoder(/*decodeclk, */ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
 //input decodeclk;
 input [31:0] ins;
 output reg isregalu;
@@ -193,6 +198,9 @@ output reg dataread;
 output reg datawrite;
 output reg extnread;
 output reg extnwrite;
+output reg highA;
+output reg highB;
+output reg highC;
 output reg getpc;
 output reg setpc;
 output reg blink;
@@ -244,6 +252,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_ADD: begin
 			encoding = `ENCODING_OPABC;
@@ -272,6 +283,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_SUB: begin
 			encoding = `ENCODING_OPABC;
@@ -300,6 +314,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_AND: begin
 			encoding = `ENCODING_OPABC;
@@ -328,6 +345,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_OR: begin
 			encoding = `ENCODING_OPABC;
@@ -356,6 +376,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_XOR: begin
 			encoding = `ENCODING_OPABC;
@@ -384,6 +407,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_SHL: begin
 			encoding = `ENCODING_OPABC;
@@ -412,6 +438,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_SHRZ: begin
 			encoding = `ENCODING_OPABC;
@@ -440,6 +469,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_SHRS: begin
 			encoding = `ENCODING_OPABC;
@@ -468,6 +500,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_BLINK: begin
 			encoding = `ENCODING_OPABC;
@@ -495,6 +530,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_BTO: begin
 			encoding = `ENCODING_OPABC; // Note, destination register is ignored in a plain bto
@@ -521,6 +559,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_BE: begin
 			encoding = `ENCODING_OPABC;
@@ -549,6 +590,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_BEFORE: begin
 			encoding = `ENCODING_OPABC; // Note, destination register is ignored in a plain before
@@ -576,6 +620,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			//bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		/*
 		`OP_BRIF: begin
@@ -613,6 +660,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_CTRLOUT64: begin
 			encoding = `ENCODING_OPBCI;
@@ -641,6 +691,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_READ32: begin
 			encoding = `ENCODING_OPABI;
@@ -669,6 +722,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_WRITE32: begin
 			encoding = `ENCODING_OPBCI;
@@ -696,6 +752,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_IN32: begin
 			encoding = `ENCODING_OPABI;
@@ -725,6 +784,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_OUT32: begin
 			encoding = `ENCODING_OPBCI;
@@ -753,6 +815,133 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_READ32H: begin
+			encoding = `ENCODING_OPABI;
+			isvalid = 1;
+			dataread = 1;
+			valsize = 2;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			//dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 1;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_WRITE32H: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			datawrite = 1;
+			valsize = 2;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			//datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 1;
+		end
+		`OP_IN32H: begin
+			encoding = `ENCODING_OPABI;
+			isvalid = 1;
+			issystem = 1;
+			extnread = 1;
+			valsize = 2;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			//extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 1;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_OUT32H: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			issystem = 1;
+			extnwrite = 1;
+			valsize = 2;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			//extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 1;
 		end
 		`OP_IFABOVE: begin
 			encoding = `ENCODING_OPBCI;
@@ -781,6 +970,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			//bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_IFBELOWS: begin
 			encoding = `ENCODING_OPBCI;
@@ -809,6 +1001,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			//bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		`OP_IFEQUALS: begin
 			encoding = `ENCODING_OPBCI;
@@ -837,6 +1032,9 @@ always @(opcode /*posedge decodeclk*/) begin
 			//bif = 0;
 			//encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 		default: begin
 			isregalu = 0;
@@ -859,24 +1057,30 @@ always @(opcode /*posedge decodeclk*/) begin
 			bif = 0;
 			encoding = 0;
 			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
 		end
 	endcase
 end
 
 endmodule
 
-module SimpleRegisters(reset, regA, regB, regC, write, inA, outB, outC, regvalid);
+module SimpleRegisters(reset, regA, regB, regC, write, highA, highB, highC, inA, outB, outC, regvalid);
 input reset;
 input [7:0] regA;
 input [7:0] regB;
 input [7:0] regC;
 input write;
+input highA;
+input highB;
+input highC;
 input [63:0] inA;
 output [63:0] outB;
 output [63:0] outC;
 output regvalid;
 
-reg [63:0]regs[7:0];
+reg [63:0]regs[15:0];
 
 always @(posedge write) begin
 	if (reset) begin
@@ -888,14 +1092,14 @@ always @(posedge write) begin
 		regs[5] = 0;
 		regs[6] = 0;
 		regs[7] = 0;
-		/*regs[8] = 0;
+		regs[8] = 0;
 		regs[9] = 0;
 		regs[10] = 0;
 		regs[11] = 0;
 		regs[12] = 0;
 		regs[13] = 0;
 		regs[14] = 0;
-		regs[15] = 0;*/
+		regs[15] = 0;
 		/*
 		regs[16] = 0;
 		regs[17] = 0;
@@ -1137,14 +1341,16 @@ always @(posedge write) begin
 		regs[253] = 0;
 		regs[254] = 0;
 		regs[255] = 0;*/
-	end else if (regvalid) begin
-		regs[regA[2:0]] = inA;
+	end else if (regvalid && !highA) begin
+		regs[regA[3:0]] = inA;
+	end else if (regvalid && highA) begin
+		regs[regA[3:0]][63:32] = inA[31:0];
 	end
 end
 
-assign outB = regs[regB[2:0]];
-assign outC = regs[regC[2:0]];
-assign regvalid = ((regA[7:3] == 0) && (regB[7:3] == 0) && (regC[7:3] == 0)) ? 1 : 0;
+assign outB = highB ? regs[regB[3:0]][31:0] : regs[regB[3:0]];
+assign outC = highC ? regs[regC[3:0]][31:0] : regs[regC[3:0]];
+assign regvalid = ((regA[7:4] == 0) && (regB[7:4] == 0) && (regC[7:4] == 0)) ? 1 : 0;
 
 endmodule
 
@@ -1315,6 +1521,9 @@ reg [63:0] nmirrorxaddr = 0;
 reg [1:0] inssize = 2'b10;
 reg [31:0] ins = 0;
 
+reg [63:0] system0reg;
+reg [63:0] nsystem0reg;
+
 assign sysmode = flags[0:0];
 wire excnenable = flags[1:1];
 wire tmxenable = flags[2:2];
@@ -1337,6 +1546,9 @@ wire dataread;
 wire datawrite;
 wire extnread;
 wire extnwrite;
+wire highA;
+wire highB;
+wire highC;
 wire getpc;
 wire setpc;
 wire blink;
@@ -1346,7 +1558,7 @@ wire bif;
 wire needsbus = dataread || datawrite || extnread || extnwrite;
 //reg decodeclk = 0;
 // (ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, getpc, setpc, blink, bto, bswitch, bif)
-SimpleDecoder decoder(/*decodeclk, */ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, getpc, setpc, blink, bto, bswitch, bif);
+SimpleDecoder decoder(/*decodeclk, */ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
 
 reg [63:0]regInA;
 wire [63:0]regOutB;
@@ -1354,7 +1566,7 @@ wire [63:0]regOutC;
 wire regvalid;
 reg reallyregwrite = 0;
 
-SimpleRegisters registers(reset, regA, regB, regC, reallyregwrite || reset, regInA, regOutB, regOutC, regvalid);
+SimpleRegisters registers(reset, regA, regB, regC, reallyregwrite || reset, highA, highB, highC, regInA, regOutB, regOutC, regvalid);
 
 wire [63:0]aluOutA;
 wire [63:0]aluInB = regOutB;
@@ -1382,7 +1594,7 @@ reg [3:0]ctrln;
 
 wire [63:0]ctrlv = (ctrln == `CTRL_FLAGS) ? flags : ((ctrln == `CTRL_MIRRORFLAGS) ? mirrorflags
 	: ((ctrln == `CTRL_XADDR) ? xaddr : ((ctrln == `CTRL_MIRRORXADDR) ? mirrorxaddr
-	: ((ctrln == `CTRL_EXCN) ? excn : ((ctrln == `CTRL_TIMER) ? timerctrlout : 0)))));
+	: ((ctrln == `CTRL_EXCN) ? excn : ((ctrln == `CTRL_TIMER0) ? timerctrlout : (ctrln == `CTRL_SYSTEM0 ? system0reg : 0))))));
 
 always @(negedge clock) begin
 	if (reset) begin
@@ -1427,6 +1639,7 @@ always @(negedge clock) begin
 				mirrorflags = nmirrorflags;
 				xaddr = nxaddr;
 				mirrorxaddr = nmirrorxaddr;
+				system0reg = nsystem0reg;
 				dsize = inssize;
 				readins = 1;
 				nstage = `STAGE_FETCH;
@@ -1600,7 +1813,8 @@ always @(negedge clock) begin
 					nmirrorflags = (ctrlwrite && (ctrln == `CTRL_MIRRORFLAGS)) ? regOutC : mirrorflags;
 					nxaddr = (ctrlwrite && (ctrln == `CTRL_XADDR)) ? regOutC : xaddr;
 					nmirrorxaddr = (ctrlwrite && (ctrln == `CTRL_MIRRORXADDR)) ? regOutC : mirrorxaddr;
-					if (ctrlwrite && (ctrln == `CTRL_TIMER)) begin
+					nsystem0reg = (ctrlwrite && (ctrln == `CTRL_SYSTEM0)) ? regOutC : system0reg;
+					if (ctrlwrite && (ctrln == `CTRL_TIMER0)) begin
 						timerctrlin = regOutC;
 					end
 				end
