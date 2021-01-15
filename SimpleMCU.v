@@ -35,6 +35,8 @@ reg busx = 0;
 reg hwx = 0;
 wire hwxa;
 wire [5:0]stage;
+reg [63:0] gpioain = 0;
+wire [63:0] gpioaout;
 
 always @(posedge clk) begin
 	if ((readins || readmem || writemem) && ((address >= (8191 << 2)) || (address[1:0] != 0) || (dsize != 2))) begin
@@ -55,7 +57,7 @@ always @(posedge clk) begin
 end
 
 //module SimpleCore(clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,dblflt,busx,hwx,hwxa,stage)
-SimpleCore core(count[24], reset, address, dsize, din, dout, readins, readmem, readio, writemem, writeio, ready, sysmode, dblflt, busx, hwx, hwxa, stage);
+SimpleCore core(count[24], reset, address, dsize, din, dout, readins, readmem, readio, writemem, writeio, ready, sysmode, dblflt, busx, hwx, hwxa, gpioain, gpioaout, stage);
 
 /*assign LED0 = !sysmode;
 assign LED1 = !dblflt;
