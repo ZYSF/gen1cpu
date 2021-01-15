@@ -67,3 +67,11 @@ Note that when handling a timer exception (i.e. if it's enabled and a dingdong o
 It might be handy to have a standard timer running on a pre-determined and standardised frequency (e.g. 1MHz) in the future for the purposes of porting timing-specific software.
 
 (This can be an issue with ARM devices even with well-specified timer peripherals, particularly to get stuff like serial working you need to know the exact configured frequency in order to work at the correct rate. For higher-level timing purposes you'd just use a battery-backed clock circuit or determine time from the network.)
+
+## CTRL_GPIOA_PINS (0xA)
+
+This control register writes to, or reads from, the pins of the `GPIOA` I/O bus.
+
+This just gives direct access to some pins or wires, which is particularly handy for microcontrollers (MCUs) where you might need to control some non-standard peripherals directly. Devices which don't need this can just ignore the `GPIOA` interface (i.e. not map it to any external pins) or they might disable the control register some other way.
+
+At reset, all output pins will be set to zero. No masking or other operations happen inside the core, however this may be added as an option in the future (and there might even be multiple GPIO channels)
