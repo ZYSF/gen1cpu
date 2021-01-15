@@ -1,15 +1,18 @@
 # gen1cpu
+
 Finally, a CPU that isn't mind-numbingly complex. Batteries sold separately.
 
 Implemented in Verilog and featuring a custom-designed instruction set (completely copyright-free!).
 
+Designed to be deployed in microcontrollers (MCUs) for security-sensitive devices (particularly robotics and communications devices), but not yet adequately-tested or extended for real world use. May be more applicable to general-purpose computing in the future, but security concerns are prioritised over efficiency concerns.
+
 ## Features
 
-* Basic integer maths
+* Basic integer maths (other operations can be added easily for larger designs)
 * Basic control flow (decision-making, looping and function calls)
 * Basic system-mode/user-mode functionality, complete with mode switching, invalid-instruction handling and interrupt handling
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals, TODO: test that)
-* Reasonably lightweight (may not fit on all embedded FPGAs but should on recent/mid-range ones)
+* Reasonably lightweight (may not fit on all embedded FPGAs but should on recent/mid-range ones, very small codebase)
 * Custom [instruction set](InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
 * Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space
 
@@ -32,6 +35,7 @@ Implemented in Verilog and featuring a custom-designed instruction set (complete
 
 ## TODO
 
+* Obviously a better name ("gen1" is just CPU-speak for "first-generation design")
 * More advanced tools (work-in-progress...)
 * FPU (could be implemented by extending the control functions, but would likely take up a lot of FPGA space)
 * MMU (could possibly be implemented over the current bus though)
