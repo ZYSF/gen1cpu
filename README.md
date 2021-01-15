@@ -33,14 +33,3 @@ Designed to be deployed in microcontrollers (MCUs) for security-sensitive device
 * [ZAsm](https://github.com/ZYSF/ZAsm/) a simple but flexible assembler which supports the new instruction set.
 * [ZLink](https://github.com/ZYSF/ZLink/) a linker which can produce flat binaries from the assembled code.
 * A C compiler is also in development.
-
-## TODO
-
-* Obviously a better name ("gen1" is just CPU-speak for "first-generation design")
-* More advanced tools (work-in-progress...)
-* FPU (could be implemented by extending the control functions, but would likely take up a lot of FPGA space)
-* MMU (could possibly be implemented over the current bus though)
-* Optimisation of existing instructions (most/all instructions take more cycles than should be strictly necessary)
-* Addition of optimised instructions (e.g. you can already read an 8-bit or 64-bit value from memory, but it will currently take more instructions than just reading a 32-bit value)
-* Test cases (I have done some ad-hoc testing, initially with Icarus Verilog and also on FPGA, but only the FPGA module is included as I mostly trashed the other one while learning Verilog)
-* etc.
