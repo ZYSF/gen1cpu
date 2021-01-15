@@ -185,9 +185,20 @@ Conditionals use the constant in a special way (TODO: This isn't handled properl
 
 This can also be used for unconditional jumps to local addresses (since any register always equals itself).
 
+## Planned Instructions
+
+These haven't been added at time of writing but may be added to the base configuration in the future (these are almost essential for 64-bit C targets, but might still be considered optional or unnecessary for a minimalist (or 32-bit) implementation:
+
+* 0xD6 - read32h (same as read32 except replaces the high 32 bits of the register without altering the low bits)
+* 0xDE - write32h (same as write32 except takes the data from the high 32 bits of the register)
+* 0xE6 - in32h (like read32h except for I/O bus)
+* 0xEE - out32h (like write32h except for I/O bus)
+
+This functionality can always be implemented in software, but the amount of bit-shifting just to read/write a 64-bit value would be annoying. Encoding may change before implementation (but this is the encoding now supported by the assembler).
+
 ## Enhancements Which May Be Needed
 
-* Particularly to run C programs smoothly, optimised 64-bit memory operations would be handy.
+* Particularly to run C programs smoothly, optimised 64-bit memory operations would be handy. (See above.)
 * Semantics of loading smaller values also need to be clarified (particularly at which points sign extension happens).
 * For system code, an additional control register or two just for storing cached pointers (e.g. to the task structure) would be helpful.
 * There are probably some other cases where common code sequences can be replaced with a single optimised instruction.
