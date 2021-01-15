@@ -50,3 +50,14 @@ As for the CPU itself, additional peripherals like a memory management unit (MMU
 The basic design should also be applicable to 32-bit implementations but this isn't included as an option in the Verilog code yet. An earlier design included an option to change the word and address size but it became more difficult to test since switching modes impacted all the testing scripts too (once the design stabilises it should be easy to add a 32-bit option).
 
 The current compromise is to use a 32-bit data and instruction bus (with 32-bit instructions) _but a 64-bit address bus, registers, ALU, etc._. This should be reasonable for most uses since the upper 32 bits of the address bus can just be ignored in hardware (i.e. if the hardware has a 32-bit external bus), whereas 32-bit fetches would be required for instructions anyway (so even on a 64-bit external bus would require some way to fetch 32-bit values). However, this compromise probably isn't perfect for any use case - for example if it's surrounded by a cache layer that layer will probably want to allow 64-bit fetches regardless of the external bus, and 64-bit fetches would probably need to be provided in software if the hardware doesn't support them; conversely - a smaller implementation would probably benefit from having 32-bit internal registers and ALU anyway regardless of external bus. A more robust solution might be to generate different variations with a program rather than to try to work all of them into a single Verilog implementation.
+
+## TODO
+
+* Obviously a better name ("gen1" is just CPU-speak for "first-generation design")
+* More advanced tools (work-in-progress...)
+* FPU (could be implemented by extending the control functions, but would likely take up a lot of FPGA space)
+* MMU (could possibly be implemented over the current bus though)
+* Optimisation of existing instructions (most/all instructions take more cycles than should be strictly necessary)
+* Addition of optimised instructions (e.g. you can already read an 8-bit or 64-bit value from memory, but it will currently take more instructions than just reading a 32-bit value)
+* Test cases (I have done some ad-hoc testing, initially with Icarus Verilog and also on FPGA, but only the FPGA module is included as I mostly trashed the other one while learning Verilog)
+* etc.
