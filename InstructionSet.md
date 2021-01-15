@@ -171,7 +171,7 @@ This is also the case for the instruction bus (which would typically match the m
 
 Conditionals use the constant in a special way (TODO: This isn't handled properly in the assembler yet!). All 16 bits replace the third to eightenth bits of the existing program counter, meaning they can target anywhere within the same 256 kilobyte-aligned space.
 
-### Ifbelow (for conditional branching comparing signed integers)
+### Ifbelows (for conditional branching comparing signed integers)
 
     OP_IFBELOWS		0xFB
   
