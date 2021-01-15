@@ -15,6 +15,16 @@ For this same reason, opcodes and operands are generally aligned on 4- or
 4-bit or 8-bit operand). This encoding allows for addressing up to 256 different registers in most instructions
 and up to 16 in instructions with more bits reserved for immediate values.
 
+### Main Encoding Types
+
+* Instructions encoded "abc" style use 8 bits each to specify up to 3 different registers (if some are disabled then the encoding is known as e.g. "axc")
+* Instructions encoded "abi", "bci" or "bca" style all use 4 bits each to specify up to 2 different registers, and then use the lower 16 bits to specify an immediate or address operand
+* Instructions encoded with "x" symbols should assume zeroes for any relevant/remaining bits (but in some cases this space can be used for system-specific information, e.g. a debugger can add extra metadata to a trap instruction)
+
+For convenience, the descriptions below list their arguments in hex style, so a regular "abc" operation is written something like `0xA1aabbcc` (indicating that it takes two hex digits to encode each register number for the `0xA1` instruction).
+
+Note that the register given as `a` is generally the "target register" (or whatever register is written to). This is why e.g. in an `ifequals` instruction the two register parameters are named `b` and `c` (since it compares two registers but doesn't write to any) whereas in a `read32` instruction they're named `a` and `b` (because it reads from one register and writest to another). In practice, it's often sensible to use the same register as both a source and a target (e.g. `add $r1, $r1, $r3` would effectively add the value of `$r3` to whatever's already in `$r1`), but generally the instructions will _only read_ from whatever is `b` or `c` and _only write_ to `a`.
+
 ## Instructions
 
 ### Syscall
@@ -167,21 +177,21 @@ This is also the case for the instruction bus (which would typically match the m
 
     OP_IFABOVE		0xFA
   
-    0xFAbciiii: if((unsigned) b > (unsigned) c){npc = (pc & (-1 << 18)) | (i<<2);}
+    0xFAbcaaaa: if((unsigned) b > (unsigned) c){npc = (pc & (-1 << 18)) | (i<<2);}
 
-Conditionals use the constant in a special way (TODO: This isn't handled properly in the assembler yet!). All 16 bits replace the third to eightenth bits of the existing program counter, meaning they can target anywhere within the same 256 kilobyte-aligned space.
+Conditionals use the constant in a special way (which should be handled automatically by the assembler). All 16 bits of the encoded value replace the third to eightenth bits of the existing program counter, meaning they can target anywhere within the same 256 kilobyte-aligned space. In other words, to encode a nearby address as a target, shift it right by two before encoding as a normal "bci"-type instruction.
 
 ### Ifbelows (for conditional branching comparing signed integers)
 
     OP_IFBELOWS		0xFB
   
-    0xFBbciiii: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
+    0xFBbcaaaa: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
 
 ### Ifequals (for conditional branching based on bit-equality)
 
     OP_IFEQUALS		0xFE
   
-    0xFEbciiii: if(b == c){npc = (pc & (-1 << 18)) | (i<<2);}
+    0xFEbcaaaa: if(b == c){npc = (pc & (-1 << 18)) | (i<<2);}
 
 This can also be used for unconditional jumps to local addresses (since any register always equals itself).
 
