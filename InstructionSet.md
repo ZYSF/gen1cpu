@@ -187,7 +187,7 @@ This can also be used for unconditional jumps to local addresses (since any regi
 
 ## Planned Instructions
 
-These haven't been added at time of writing but may be added to the base configuration in the future (these are almost essential for 64-bit C targets, but might still be considered optional or unnecessary for a minimalist (or 32-bit) implementation:
+These haven't been added at time of writing but may be added to the base configuration in the future (these are almost essential for 64-bit C targets, but might still be considered optional or unnecessary for a minimalist or 32-bit implementation):
 
 * 0xD6 - read32h (same as read32 except replaces the high 32 bits of the register without altering the low bits)
 * 0xDE - write32h (same as write32 except takes the data from the high 32 bits of the register)
@@ -195,6 +195,8 @@ These haven't been added at time of writing but may be added to the base configu
 * 0xEE - out32h (like write32h except for I/O bus)
 
 This functionality can always be implemented in software, but the amount of bit-shifting just to read/write a 64-bit value would be annoying. Encoding may change before implementation (but this is the encoding now supported by the assembler).
+
+On a full 64-bit hardware bus, all of the 32-bit memory implementations could still be implemented (the bus would need to support 32-bit access for instruction fetching anyway), but optimised instructions for 64-bit reads/writes would use the suboperations 0x3 and 0xB (indicating 64-bit read/write like with the ctrlin64/ctrlout64 instructions).
 
 ## Enhancements Which May Be Needed
 
