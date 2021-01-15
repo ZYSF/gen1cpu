@@ -66,7 +66,7 @@ The instruction set is documented chiefly in the main Verilog file, but also und
 
 Actually, a few reasons.
 
-1. Registers are more secure than external memory (if you're not worried about the memory chips stealing your cryptography secrets, then you're probably not a security specialist)
+1. Registers are more secure than external memory (if you're not worried about your motherboard leaking your cryptography secrets, then you're probably not a security expert)
 2. Using an encoding of either 16 or 256 registers makes the instructions easier to read (and if there's free space anyway - why not just use it to allow 256 registers? on the other hand in some instructions we only allow the lower 16 to be used anyway, so it's not like we're really wasting any encoding space)
 3. If anyone is like "nah this other CPU architecture is faster" I can be like "well, in theory... this architecture could do the same thing with less memory reads/writes, so, in theory..." (in other words, more registers gives a natural speed advantage, but there are tradeoffs in space and power usage meaning you might not want too many in hardware)
 4. It allows for future implementations to have more flexibility over registers. For example, the operating system might want to define which registers are enabled/disabled in software so that it can cache things more efficiently, or an application might want to keep one register holding a "context" value at all times for debugging or to simplify some API internals.
@@ -75,13 +75,13 @@ As for standardisation, however, a program can generally assume that there are a
 
 ### Why A Separate I/O Bus?
 
-Nowadays, most systems access I/O devices through the memory bus instead of dedicated I/O ports. Why? Because it's "simpler" and "works better with C".
+Nowadays, most systems access I/O devices through the memory bus instead of dedicated I/O ports. Why? Because "it's simpler" and "it works better with C" and "we can just use an MMU to multiplex everything".
 
-However, that may not be an appropriate option for high-security environments. If all your device access happens via the MMU, all your memory access happens via the MMU, and all your cryptography happens via the MMU, then any device with access to the MMU can potentially compromise all your devices, all your memory and all your cryptography. So although the current hardware design still uses the same wires to save space, this design allows more flexibility in situations where you want to isolate components as much as possible.
+However, that may not be an appropriate option for high-security environments. If all your device access happens via the MMU, all your memory access happens via the MMU, and all your cryptography happens via the MMU, then any device with access to the MMU can potentially compromise all your devices, all your memory and all your cryptography. So although the current hardware design still uses the same wires to save space, the design of the instruction set allows more flexibility in situations where you want to isolate components as much as possible.
 
-A separate I/O bus with a complete memory-like interface not only allows us to separate I/O access from "application memory", but it even allows us to forego the MMU entirely. System code can just store it's data via the I/O bus (which can also just be connected to memory) whereas user code can use the memory bus and instruction code can be stored in a separate ROM. You could even use one ROM for system code and normal memory for application code, since the system-mode flag is exposed to the bus).
+A separate I/O bus with a complete memory-like interface not only allows us to separate I/O access from "application memory", but it even allows us to forego the MMU entirely. System code can just store it's data via the I/O bus (which can also just be connected to memory) whereas user code can use the memory bus (which could be connected to totally separate memory) and instruction code can be stored in a separate ROM. You could even use one ROM for system code and normal memory for application code, since the system-mode flag is also part of the bus.
 
-I repeat: On this platform, you do not need a complex and error-prone MMU in order to efficiently isolate system and application code. (An MMU might still be handy for heavy multitasking workflows, but it isn't strictly required to implement process isolation in multitasking environments.)
+I repeat: On this platform, you do not need a complex and error-prone MMU in order to efficiently isolate system and application code. An MMU might still be handy for heavy multitasking workflows, but it isn't strictly required to implement process isolation in multitasking environments.
 
 ### Future Plans
 
