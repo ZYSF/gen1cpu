@@ -79,9 +79,9 @@ Nowadays, most systems access I/O devices through the memory bus instead of dedi
 
 However, that may not be an appropriate option for high-security environments. If all your device access happens via the MMU, all your memory access happens via the MMU, and all your cryptography happens via the MMU, then any device with access to the MMU can potentially compromise all your devices, all your memory and all your cryptography. So although the current hardware design still uses the same wires to save space, this design allows more flexibility in situations where you want to isolate components as much as possible.
 
-A separate I/O bus with a complete memory-like interface not only allows us to separate I/O access from "application memory", but it even allows us to forego the MMU entirely. System code can just store it's data via the I/O bus whereas user code can use the memory bus and instruction code can be stored in a separate ROM (you could even use one ROM for system code and normal memory for application code, since the system-mode flag is exposed to the bus).
+A separate I/O bus with a complete memory-like interface not only allows us to separate I/O access from "application memory", but it even allows us to forego the MMU entirely. System code can just store it's data via the I/O bus (which can also just be connected to memory) whereas user code can use the memory bus and instruction code can be stored in a separate ROM. You could even use one ROM for system code and normal memory for application code, since the system-mode flag is exposed to the bus).
 
-I repeat: On this platform, you do not need a complex and buggy MMU in order to efficiently isolate system and application code. (However an MMU would still be handy for heavy multitasking workflows.)
+I repeat: On this platform, you do not need a complex and error-prone MMU in order to efficiently isolate system and application code. (An MMU might still be handy for heavy multitasking workflows, but it isn't strictly required to implement process isolation in multitasking environments.)
 
 ### Future Plans
 
