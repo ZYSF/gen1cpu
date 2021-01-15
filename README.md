@@ -16,6 +16,7 @@ Designed to be deployed in microcontrollers (MCUs) for security-sensitive device
 * Custom [instruction set](InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
 * Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space
 * Two options for I/O: A direct 64-bit core-to-pin interface ("GPIOA"), or a classic I/O bus with similar semantics to the memory bus
+* Basic feature detection (at least can check major version number and number of registers)
 
 ## Code Overview
 
