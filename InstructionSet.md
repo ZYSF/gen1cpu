@@ -19,6 +19,7 @@ and up to 16 in instructions with more bits reserved for immediate values.
 
 * Instructions encoded "abc" style use 8 bits each to specify up to 3 different registers (if some are disabled then the encoding is known as e.g. "axc")
 * Instructions encoded "abi", "bci" or "bca" style all use 4 bits each to specify up to 2 different registers, and then use the lower 16 bits to specify an immediate or address operand
+* Instructions encoded "l24" are optimised load instructions, with the minor opcode (4 bits) specifying the target register and the lower 24 bits to specify an immediate operand
 * Instructions encoded with "x" symbols should assume zeroes for any relevant/remaining bits (but in some cases this space can be used for system-specific information, e.g. a debugger can add extra metadata to a trap instruction)
 
 For convenience, the descriptions below list their arguments in hex style, so a regular "abc" operation is written something like `0xA1aabbcc` (indicating that it takes two hex digits to encode each register number for the `0xA1` instruction).
@@ -41,6 +42,8 @@ Invalid instruction, but reserved for encoding system calls.
   
     0x11abiiii: a=b+i;
 
+Adds an immediate value to the value of a register, storing the result in a register.
+
 NOTE: Can only access lower 16 registers due to encoding.
   
 ### Add
@@ -48,6 +51,8 @@ NOTE: Can only access lower 16 registers due to encoding.
     OP_ADD				0xhA1
   
     0xA1aabbcc: a=b+c;
+
+Adds the value of two registers together, storing the result in a register.
 
 This encoding (which is shared for most other basic math operations) allows up to 256 registers, but higher ones might be disabled.
 
@@ -127,15 +132,17 @@ Invalid instruction, but reserved for traps. That is, if a debugger replaces an 
 
     OP_CTRLIN64		0xC3
   
-    0xC3abiiii: a=ctrl[b+i];
+    0xC3axiiii: a=ctrl[i];
 
 Control registers (which are used for internal circuits like the timer) are accessed similarly to the memory interface, except that the size of values always corresponds to the internal register size and control registers are indexed counting in 1 rather than word sizes (ensuring there is never any ambiguity about the basic operations).
+
+The other difference is that the base register (which the immediate value would otherwise be added to to get the final address) has been removed from the control register instructions. This is to ensure that control register can be accessed without needing a clear register (since they might be used for saving an initial register during context switching, so that it can then be free to calculate locations to save the others).
 
 ### Ctrlout64 (read co/processor info)
 
     OP_CTRLOUT64		0xCB
   
-    0xCBbciiii: ctrl[b+i]=c;
+    0xCBxciiii: ctrl[i]=c;
 
 ### Read32 (read data memory)
 
@@ -195,14 +202,15 @@ Conditionals use the constant in a special way (which should be handled automati
 
 This can also be used for unconditional jumps to local addresses (since any register always equals itself).
 
-## Planned Instructions
+## Recently-Added Instructions
 
-These haven't been added at time of writing but may be added to the base configuration in the future (these are almost essential for 64-bit C targets, but might still be considered optional or unnecessary for a minimalist or 32-bit implementation):
+These have only just been added at time of writing and haven't really been tested yet:
 
 * 0xD6 - read32h (same as read32 except replaces the high 32 bits of the register without altering the low bits)
 * 0xDE - write32h (same as write32 except takes the data from the high 32 bits of the register)
 * 0xE6 - in32h (like read32h except for I/O bus)
 * 0xEE - out32h (like write32h except for I/O bus)
+* 0x3x - ld24 (optimised load instruction which can reset any of the lower 16 registers based on a 24-bit immediate value)
 
 This functionality can always be implemented in software, but the amount of bit-shifting just to read/write a 64-bit value would be annoying. Encoding may change before implementation (but this is the encoding now supported by the assembler).
 
