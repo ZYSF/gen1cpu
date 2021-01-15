@@ -141,6 +141,7 @@
 `define CTRL_MIRRORXADDR	4'h5
 `define CTRL_TIMER0			4'h6
 `define CTRL_SYSTEM0			4'h8  // This one has no hard-coded purpose. It's mostly designed for holding task info in an operating system.
+`define CTRL_GPIOA_PINS		4'hA	// GPIO A = CTRL #A. Almost by design.
 
 `define EXCN_BADDOG			1		// Unable to fetch instruction (i.e. bad instruction address or fatal bus error)
 `define EXCN_INVALIDINSTR	2		// Instruction was fetched but not recognised as valid by the decoder
@@ -176,7 +177,7 @@
 /* Defines the value of the CPUID register, which should identify basic features/version as well as a vendor id.
  * Low byte is the maximum addressable register, next is ISA version, high bytes are a signature.
  */
-`define CPUIDVALUE				64'h5A59534600000107
+`define CPUIDVALUE				64'h5A5953460000010F
 
 module SimpleDecoder(/*decodeclk, */ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
 //input decodeclk;
@@ -1485,7 +1486,7 @@ end
 
 endmodule
 
-module SimpleCore(clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,dblflt,busx,hwx,hwxa,stage);
+module SimpleCore(clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,dblflt,busx,hwx,hwxa,gpioain,gpioaout,stage);
 input clock;
 input reset;
 output reg [63:0] address;
@@ -1503,6 +1504,8 @@ output reg dblflt;
 input busx;
 input hwx;
 output reg hwxa;
+input [63:0] gpioain;
+output reg [63:0] gpioaout;
 
 output reg [5:0] stage = 0;
 
@@ -1594,7 +1597,8 @@ reg [3:0]ctrln;
 
 wire [63:0]ctrlv = (ctrln == `CTRL_FLAGS) ? flags : ((ctrln == `CTRL_MIRRORFLAGS) ? mirrorflags
 	: ((ctrln == `CTRL_XADDR) ? xaddr : ((ctrln == `CTRL_MIRRORXADDR) ? mirrorxaddr
-	: ((ctrln == `CTRL_EXCN) ? excn : ((ctrln == `CTRL_TIMER0) ? timerctrlout : (ctrln == `CTRL_SYSTEM0 ? system0reg : 0))))));
+	: ((ctrln == `CTRL_EXCN) ? excn : ((ctrln == `CTRL_TIMER0) ? timerctrlout
+	: (ctrln == `CTRL_SYSTEM0 ? system0reg : ((ctrln == `CTRL_GPIOA_PINS) ? gpioain : 0)))))));
 
 always @(negedge clock) begin
 	if (reset) begin
@@ -1623,8 +1627,11 @@ always @(negedge clock) begin
 		nxaddr = 0;
 		mirrorxaddr = 0;
 		nmirrorxaddr = 0;
+		system0reg = 0;
+		nsystem0reg = 0;
 		
 		timerctrlin = 0;
+		gpioaout = 0;
 	end else begin
 		case (stage)
 			/* The INITIAL stage either happens after the end of the previous instruction, or directly after a reset.
@@ -1816,6 +1823,8 @@ always @(negedge clock) begin
 					nsystem0reg = (ctrlwrite && (ctrln == `CTRL_SYSTEM0)) ? regOutC : system0reg;
 					if (ctrlwrite && (ctrln == `CTRL_TIMER0)) begin
 						timerctrlin = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_GPIOA_PINS)) begin
+						gpioaout = regOutC;
 					end
 				end
 				nstage = `STAGE_INITIAL;
