@@ -80,10 +80,11 @@
  *
  * All unrecognised instructions should trigger a recoverable decoding exception.
  */
-`define ENCODING_BAD			2'b00		// 0xop??????
-`define ENCODING_OPABC		2'b10		// 0xopaabbcc
-`define ENCODING_OPABI		2'b11		// 0xopabiiii
-`define ENCODING_OPBCI		2'b01		// 0xopbciiii NOTE: Similar to OPABI encoding except two input registers
+`define ENCODING_BAD			3'b000		// 0xop??????
+`define ENCODING_OPABC		3'b010		// 0xopaabbcc
+`define ENCODING_OPABI		3'b011		// 0xopabiiii
+`define ENCODING_OPBCI		3'b001		// 0xopbciiii NOTE: Similar to OPABI encoding except two input registers
+`define ENCODING_OPL24		3'b100		// 0xoaiiiiii NOTE: Target register is suboperation, 24 bit immediate. (An optimised encoding for loading constants.)
  
 `define OP_SYSCALL		8'h00	// 0x00??????: invalid instruction, but reserved for encoding system calls
 `define OP_ADDIMM			8'h11	// 0x11abiiii: a=b+i; // NOTE: Can only access lower 16 registers due to encoding
@@ -100,8 +101,8 @@
 `define OP_BE				8'hB3 // 0xB3aaxxcc: a = pc + 4; npc = c; // This is short for branch-and-enter
 `define OP_BEFORE			8'hB4 // 0xB4xxxxxx: npc = before; nflags = mirrorflags; nmirrorflags = flags; nbefore = mirrorbefore; nmirrorbefore = before;
 `define OP_BAIT			8'hB8 // 0xB8xxxxxx: invalid instruction, but reserved for traps.
-`define OP_CTRLIN64		8'hC3	// 0xC3abiiii: a=ctrl[b+i];
-`define OP_CTRLOUT64		8'hCB	// 0xCBbciiii: ctrl[b+i]=c;
+`define OP_CTRLIN64		8'hC3	// 0xC3axiiii: a=ctrl[i]; // Similar to memory ops but with no dynamic base
+`define OP_CTRLOUT64		8'hCB	// 0xCBxciiii: ctrl[i]=c;
 `define OP_READ32			8'hD2 // 0xD2abiiii: a=data[b+i];
 `define OP_READ32H		8'hD6
 `define OP_WRITE32		8'hDA	// 0xDAbciiii: data[b+i]=c;
@@ -114,24 +115,45 @@
 `define OP_IFBELOWS		8'hFB // 0xFBbciiii: if((signed) b < (signed) c){npc = (pc & (-1 << 18)) | (i<<2);}
 `define OP_IFEQUALS		8'hFE	// 0xFEbciiii: if(b == c){npc = pc + (i<<2);}
 
+// The ld24 operations treat the minor opcode as the target register, and sign-extend the lower 24-bits to fill it
+// These can be considered a mere optimisation or optional set of instructions, but they can especially be handy for
+// loading many program constants.
+`define OP_LD24_0			8'h30 // 0x3aiiiiii: a = i;
+`define OP_LD24_1			8'h31
+`define OP_LD24_2			8'h32
+`define OP_LD24_3			8'h33
+`define OP_LD24_4			8'h34
+`define OP_LD24_5			8'h35
+`define OP_LD24_6			8'h36
+`define OP_LD24_7			8'h37
+`define OP_LD24_8			8'h38
+`define OP_LD24_9			8'h39
+`define OP_LD24_A			8'h3A
+`define OP_LD24_B			8'h3B
+`define OP_LD24_C			8'h3C
+`define OP_LD24_D			8'h3D
+`define OP_LD24_E			8'h3E
+`define OP_LD24_F			8'h3F
+
 // Earlier design with combined branch/if instruction (decided to combine system-return function with branch instead)
 //`define OP_BRIF			8'hBF	// 0xBFaabbcc: if(b != 0){a = pc + 4; nflags = mirrorflags; nmirrorflags = flags; npc = c;}
 
-`define ALU_NOP			4'h0
-`define ALU_ADD			4'h1
-`define ALU_SUB			4'h2
-`define ALU_AND			4'h3
-`define ALU_OR				4'h4
-`define ALU_XOR			4'h5
-`define ALU_SHL			4'h6
-`define ALU_SHRZ			4'h7
-`define ALU_SHRS			4'h8
-`define ALU_MULS			4'h9
-`define ALU_ABOVE			4'hA
-`define ALU_BELOWS		4'hB
-`define ALU_CRUMBS		4'hC
-`define ALU_DIVS			4'hD
-`define ALU_EQUALS		4'hE
+`define ALU_NOP			5'h00
+`define ALU_ADD			5'h01
+`define ALU_SUB			5'h02
+`define ALU_AND			5'h03
+`define ALU_OR				5'h04
+`define ALU_XOR			5'h05
+`define ALU_SHL			5'h06
+`define ALU_SHRZ			5'h07
+`define ALU_SHRS			5'h08
+`define ALU_MULS			5'h09
+`define ALU_ABOVE			5'h0A
+`define ALU_BELOWS		5'h0B
+`define ALU_CRUMBS		5'h0C
+`define ALU_DIVS			5'h0D
+`define ALU_EQUALS		5'h0E
+`define ALU_LOADC			5'h10
 
 `define CTRL_CPUID			4'h0
 `define CTRL_EXCN				4'h1
@@ -141,6 +163,7 @@
 `define CTRL_MIRRORXADDR	4'h5
 `define CTRL_TIMER0			4'h6
 `define CTRL_SYSTEM0			4'h8  // This one has no hard-coded purpose. It's mostly designed for holding task info in an operating system.
+`define CTRL_SYSTEM1			4'h9  // This is another control register for storing system-specific stuff.
 `define CTRL_GPIOA_PINS		4'hA	// GPIO A = CTRL #A. Almost by design.
 
 `define EXCN_BADDOG			1		// Unable to fetch instruction (i.e. bad instruction address or fatal bus error)
@@ -190,7 +213,7 @@ output wire [7:0]regA;
 output wire [7:0]regB;
 output wire [7:0]regC;
 output reg regwrite;
-output reg [3:0]aluop;
+output reg [4:0]aluop;
 output [63:0]imm;
 output reg [1:0]valsize;
 output reg ctrlread;
@@ -209,18 +232,22 @@ output reg bto;
 output reg bswitch;
 output reg bif;
 
-reg [1:0]encoding = 0;
+reg [2:0]encoding = 0;
 
 wire [7:0]opcode = ins[31:24];
 
-/* The immediate output is just the sign-extended version of the lower half of the instruction. It will produce output
+/* The immediate output is usually just the sign-extended version of the lower half (16 bits) of the instruction, or
+ * otherwise (for instructions starting with 0x2 or 0x3). It will produce output
  * regardless of whether the immediate is used by the instruction.
  */
-wire [47:0]ext = ins[15] ? 48'b111111111111111111111111111111111111111111111111 : 0;
-assign imm = {ext, ins[15:0]};
+wire [47:0] ext16 = ins[15] ? 48'b111111111111111111111111111111111111111111111111 : 0;
+wire [63:0] imm16 = {ext16, ins[15:0]};
+wire [39:0] ext24 = ins[23] ? 40'b1111111111111111111111111111111111111111 : 0;
+wire [63:0] imm24 = {ext24, ins[23:0]};
+assign imm = (encoding == `ENCODING_OPL24) ? imm24 : imm16;
 
 /* The registers are easy to decode in ABC-format instructions but need some specialisation/defaults for others. */
-assign regA = (encoding == `ENCODING_OPABC) ? ins[23:16] : ((encoding == `ENCODING_OPABI) ? ins[23:20] : 0);
+assign regA = (encoding == `ENCODING_OPABC) ? ins[23:16] : ((encoding == `ENCODING_OPABI) ? ins[23:20] : ((encoding == `ENCODING_OPL24) ? ins[27:24] : 0));
 assign regB = (encoding == `ENCODING_OPABC) ? ins[15:8] : ((encoding == `ENCODING_OPABI) ? ins[19:16] : ((encoding == `ENCODING_OPBCI) ? ins[23:20] : 0));
 assign regC = (encoding == `ENCODING_OPABC) ? ins[7:0] : ((encoding == `ENCODING_OPBCI) ? ins[19:16] : 0);
 
@@ -1037,6 +1064,42 @@ always @(opcode /*posedge decodeclk*/) begin
 			highB = 0;
 			highC = 0;
 		end
+		// We could probably just match the top four bits here, but it might help to be
+		// clear about each sub-operation:
+		`OP_LD24_0, `OP_LD24_1, `OP_LD24_2, `OP_LD24_3,
+		`OP_LD24_4, `OP_LD24_5, `OP_LD24_6, `OP_LD24_7,
+		`OP_LD24_8, `OP_LD24_9, `OP_LD24_A, `OP_LD24_B,
+		`OP_LD24_C, `OP_LD24_D, `OP_LD24_E, `OP_LD24_F: begin
+			encoding = `ENCODING_OPL24;
+			isimmalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_LOADC; //[7:0] = {4'b0000:opcode[3:0]};
+			
+			isregalu = 0;
+			//isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
 		default: begin
 			isregalu = 0;
 			isimmalu = 0;
@@ -1356,7 +1419,7 @@ assign regvalid = ((regA[7:4] == 0) && (regB[7:4] == 0) && (regC[7:4] == 0)) ? 1
 endmodule
 
 module SimpleALU(op, outA, inB, inC, aluvalid);
-input [3:0]op;
+input [4:0]op;
 output reg [63:0]outA;
 input [63:0]inB;
 input [63:0]inC;
@@ -1406,6 +1469,10 @@ always @(op) begin
 		end
 		`ALU_EQUALS: begin
 			outA = (inB == inC) ? 1 : 0;
+			aluvalid = 1;
+		end
+		`ALU_LOADC: begin
+			outA = inC;
 			aluvalid = 1;
 		end
 		default: begin
@@ -1526,6 +1593,8 @@ reg [31:0] ins = 0;
 
 reg [63:0] system0reg;
 reg [63:0] nsystem0reg;
+reg [63:0] system1reg;
+reg [63:0] nsystem1reg;
 
 assign sysmode = flags[0:0];
 wire excnenable = flags[1:1];
@@ -1536,7 +1605,7 @@ wire isregalu;
 wire isimmalu;
 wire isvalid;
 wire issystem;
-wire [7:0]aluop;
+wire [4:0]aluop;
 wire [63:0]imm;
 wire [7:0]regA;
 wire [7:0]regB;
@@ -1598,7 +1667,8 @@ reg [3:0]ctrln;
 wire [63:0]ctrlv = (ctrln == `CTRL_FLAGS) ? flags : ((ctrln == `CTRL_MIRRORFLAGS) ? mirrorflags
 	: ((ctrln == `CTRL_XADDR) ? xaddr : ((ctrln == `CTRL_MIRRORXADDR) ? mirrorxaddr
 	: ((ctrln == `CTRL_EXCN) ? excn : ((ctrln == `CTRL_TIMER0) ? timerctrlout
-	: (ctrln == `CTRL_SYSTEM0 ? system0reg : ((ctrln == `CTRL_GPIOA_PINS) ? gpioain : 0)))))));
+	: (ctrln == `CTRL_SYSTEM0 ? system0reg : ((ctrln == `CTRL_SYSTEM1) ? system1reg
+	: ((ctrln == `CTRL_GPIOA_PINS) ? gpioain : 0))))))));
 
 always @(negedge clock) begin
 	if (reset) begin
@@ -1629,6 +1699,8 @@ always @(negedge clock) begin
 		nmirrorxaddr = 0;
 		system0reg = 0;
 		nsystem0reg = 0;
+		system1reg = 0;
+		nsystem1reg = 0;
 		
 		timerctrlin = 0;
 		gpioaout = 0;
@@ -1647,6 +1719,7 @@ always @(negedge clock) begin
 				xaddr = nxaddr;
 				mirrorxaddr = nmirrorxaddr;
 				system0reg = nsystem0reg;
+				system1reg = nsystem1reg;
 				dsize = inssize;
 				readins = 1;
 				nstage = `STAGE_FETCH;
@@ -1711,7 +1784,9 @@ always @(negedge clock) begin
 					regInA = blink ? pc + 4 : (ctrlread ? ctrlv : aluOutA);
 					nstage = `STAGE_SAVE;
 					if (ctrlread || ctrlwrite) begin
-						ctrln = (regOutB + imm);
+						// The 'b' parameter was removed from ctrlin64/ctrlout64 to ensure we don't need to clear a register
+						// especially in order to load/save registers during context switching.
+						ctrln = (/*regOutB +*/ imm);
 					end
 				end
 			end
@@ -1821,6 +1896,7 @@ always @(negedge clock) begin
 					nxaddr = (ctrlwrite && (ctrln == `CTRL_XADDR)) ? regOutC : xaddr;
 					nmirrorxaddr = (ctrlwrite && (ctrln == `CTRL_MIRRORXADDR)) ? regOutC : mirrorxaddr;
 					nsystem0reg = (ctrlwrite && (ctrln == `CTRL_SYSTEM0)) ? regOutC : system0reg;
+					nsystem1reg = (ctrlwrite && (ctrln == `CTRL_SYSTEM1)) ? regOutC : system1reg;
 					if (ctrlwrite && (ctrln == `CTRL_TIMER0)) begin
 						timerctrlin = regOutC;
 					end else if (ctrlwrite && (ctrln == `CTRL_GPIOA_PINS)) begin
