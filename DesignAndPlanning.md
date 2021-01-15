@@ -43,7 +43,7 @@ I repeat: On this platform, you do not need a complex and error-prone MMU in ord
 
 ## Future Plans
 
-Most updates at the moment are happening in the tools, particularly bootstrapping C (which will probably take a bit more fine tuning).
+Most updates at the moment are happening in the tools, particularly bootstrapping C (which will probably take a bit more fine tuning). Aside from compiler-like tools, adding a testing/verification suite and a standard microcontroller implementation would be next major issue (right now testing on hardware is mostly done by making a kind-of dummy microcontroller to check instructions by flicking lights - this works well enough to check that an instruction "seems to work" but is a kind of primitive and limited approach!). Ideally, a single test suite (perhaps with different options) could be used for testing a variety of hardware and simulated implementations.
 
 As for the CPU itself, additional peripherals like a memory management unit (MMU) and floating-point unit (FPU) would probably be desirable and many internal optimisations are also possible. An obvious optimisation would be to reduce the number of internal stages as much as possible (closer to a conventional RISC design), but this may make it more difficult to add new instructions.
 
