@@ -28,6 +28,7 @@ Designed to be deployed in microcontrollers (MCUs) for security-sensitive device
 * [Instruction Set](InstructionSet.md) documents the semantics and encoding of each of the standard instructions.
 * [Control Registers](ControlRegisters.md) documents the meanings, encodings and indices of the control registers.
 * [Modes & Exceptions](ModesAndExceptions.md) documents the user-mode/system-mode switching and the meanings of the exception codes.
+* [Startup & Reset State](StartupAndResetState.md) documents the startup/reset sequence and what state to expect the core to be in at initialisation.
 * [Design & Planning](DesignAndPlanning.md) should answer questions like "why not just use RISC-V?" and "why does it support 256 registers?"
 
 ## Tools
