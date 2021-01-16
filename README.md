@@ -10,20 +10,20 @@ Designed to be deployed in microcontrollers (MCUs) for security-sensitive device
 
 As of early 2021, I'm still actively adding features and tools. The main feature which is lacking at the moment is a proper test suite (and any resulting bugfixes!), but additional optimisations and other features would also be desirable.
 
-"Proper test suite" will probably have to begin with simulated builds for practical reasons, while some (limited) informal testing has already been done both on Cyclone 10 FPGA and by simulating in Icarus Verilog.
+A "proper test suite" would probably have to begin with simulated builds for practical reasons. Some (limited) informal testing has already been done both on Cyclone 10 FPGA and by simulating in Icarus Verilog.
 
 ## Features
 
 * Custom [instruction set](InstructionSet.md) (no copying of proprietary encodings)
 * Reasonably lightweight 64-bit implementation (very small codebase and suitable for convenient FPGA boards and 32-bit memory interfaces)
-* Basic integer maths (addition, subtraction, shifting, and/or/xor)
+* Basic integer maths ("standard operations" include addition, subtraction, shifting, and/or/xor)
 * Basic control flow (comparisons, looping and function calls)
-* System-mode/user-mode functionality, complete with mode switching
 * Exception handling (so you can recover from invalid/disabled instructions, bus errors, hardware interrupts and the like)
-* Double-fault detection (if exception handling is misconfigured your code gets killed immediately and the core goes into a special mode until reset)
+* System-mode/user-mode switching and ability to accurately save/restore program state
+* Double-fault detection (if exception handling is misconfigured the core goes into a special mode until reset)
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals)
-* Supports up to 256 general-purpose registers for basic operations (restricted to 16 in instructions with limited space)
-* Extensible ALU encoding (larger implementations can define many additional math operations using the `xlu` encoding)
+* Supports up to 256 general-purpose registers for basic operations (restricted to 16 "standard registers" for instructions with limited space)
+* Extensible encoding for ALU operations (larger implementations can define up to 65536 different math operations using the `xlu` encoding)
 * Able to load constant values up to 24 bits in a single instruction (with a special instruction for appending additional bits for larger constants)
 * Two options for I/O: A direct 64-bit core-to-pin interface ("GPIOA"), or a classic I/O bus with similar semantics to the memory bus
 * Basic feature detection (at least can check major version number and number of registers)
