@@ -211,6 +211,8 @@ These have only just been added at time of writing and haven't really been teste
 * 0xE6 - in32h (like read32h except for I/O bus)
 * 0xEE - out32h (like write32h except for I/O bus)
 * 0x3x - ld24 (optimised load instruction which can reset any of the lower 16 registers based on a 24-bit immediate value)
+* 0x1D - ldsll6imm (designed for appending additional bits to a loaded value, by shifting an existing value left by 16 bits and replacing the lower 16 bits with the immediate value)
+* 0x9x - xlu (designed for accessing extended ALU-like operations, allowing for up to 65536 different operations using the lower 16 registers)
 
 This functionality can always be implemented in software, but the amount of bit-shifting just to read/write a 64-bit value would be annoying. Encoding may change before implementation (but this is the encoding now supported by the assembler).
 
