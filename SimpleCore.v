@@ -85,9 +85,11 @@
 `define ENCODING_OPABI		3'b011		// 0xopabiiii
 `define ENCODING_OPBCI		3'b001		// 0xopbciiii NOTE: Similar to OPABI encoding except two input registers
 `define ENCODING_OPL24		3'b100		// 0xoaiiiiii NOTE: Target register is suboperation, 24 bit immediate. (An optimised encoding for loading constants.)
+`define ENCODING_OPXLU		3'b101		// 0xoabciiii NOTE: This is for extended a=b+c type operations (with up to 65536 operators)
  
 `define OP_SYSCALL		8'h00	// 0x00??????: invalid instruction, but reserved for encoding system calls
 `define OP_ADDIMM			8'h11	// 0x11abiiii: a=b+i; // NOTE: Can only access lower 16 registers due to encoding
+`define OP_LDSL16IMM		8'h1D	// 0x11abiiii: a=(b<<16)|(c&0xFF);
 `define OP_ADD				8'hA1	// 0xA1aabbcc: a=b+c; // NOTE: Encoding allows up to 256 registers, but higher ones might be disabled
 `define OP_SUB				8'hA2	// 0xA2aabbcc: a=b-c;
 `define OP_AND				8'hA3
@@ -135,6 +137,24 @@
 `define OP_LD24_E			8'h3E
 `define OP_LD24_F			8'h3F
 
+// The XLU operations have a special encoding, allowing up to 65536 different operators in a=b+c style.
+`define OP_XLU_0			8'h90 // 0x9abciiii: a = (b i c); // Where 'i' is the operator number
+`define OP_XLU_1			8'h91
+`define OP_XLU_2			8'h92
+`define OP_XLU_3			8'h93
+`define OP_XLU_4			8'h94
+`define OP_XLU_5			8'h95
+`define OP_XLU_6			8'h96
+`define OP_XLU_7			8'h97
+`define OP_XLU_8			8'h98
+`define OP_XLU_9			8'h99
+`define OP_XLU_A			8'h9A
+`define OP_XLU_B			8'h9B
+`define OP_XLU_C			8'h9C
+`define OP_XLU_D			8'h9D
+`define OP_XLU_E			8'h9E
+`define OP_XLU_F			8'h9F
+
 // Earlier design with combined branch/if instruction (decided to combine system-return function with branch instead)
 //`define OP_BRIF			8'hBF	// 0xBFaabbcc: if(b != 0){a = pc + 4; nflags = mirrorflags; nmirrorflags = flags; npc = c;}
 
@@ -151,9 +171,10 @@
 `define ALU_ABOVE			5'h0A
 `define ALU_BELOWS		5'h0B
 `define ALU_CRUMBS		5'h0C
-`define ALU_DIVS			5'h0D
+`define ALU_LDSL16		5'h0D		// a=(b<<16)|(c&0xFFFF) - basically for loading extra bits into a register
 `define ALU_EQUALS		5'h0E
 `define ALU_LOADC			5'h10
+`define ALU_DIVS			5'h11
 
 `define CTRL_CPUID			4'h0
 `define CTRL_EXCN				4'h1
@@ -247,9 +268,9 @@ wire [63:0] imm24 = {ext24, ins[23:0]};
 assign imm = (encoding == `ENCODING_OPL24) ? imm24 : imm16;
 
 /* The registers are easy to decode in ABC-format instructions but need some specialisation/defaults for others. */
-assign regA = (encoding == `ENCODING_OPABC) ? ins[23:16] : ((encoding == `ENCODING_OPABI) ? ins[23:20] : ((encoding == `ENCODING_OPL24) ? ins[27:24] : 0));
-assign regB = (encoding == `ENCODING_OPABC) ? ins[15:8] : ((encoding == `ENCODING_OPABI) ? ins[19:16] : ((encoding == `ENCODING_OPBCI) ? ins[23:20] : 0));
-assign regC = (encoding == `ENCODING_OPABC) ? ins[7:0] : ((encoding == `ENCODING_OPBCI) ? ins[19:16] : 0);
+assign regA = (encoding == `ENCODING_OPABC) ? ins[23:16] : ((encoding == `ENCODING_OPABI) ? ins[23:20] : (((encoding == `ENCODING_OPL24) || (encoding == `ENCODING_OPXLU)) ? ins[27:24] : 0));
+assign regB = (encoding == `ENCODING_OPABC) ? ins[15:8] : ((encoding == `ENCODING_OPABI) ? ins[19:16] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[23:20] : 0));
+assign regC = (encoding == `ENCODING_OPABC) ? ins[7:0] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[19:16] : 0);
 
 always @(opcode /*posedge decodeclk*/) begin
 	case (opcode)
@@ -259,6 +280,37 @@ always @(opcode /*posedge decodeclk*/) begin
 			isvalid = 1;
 			regwrite = 1;
 			aluop = `ALU_ADD; //[7:0] = {4'b0000:opcode[3:0]};
+			
+			isregalu = 0;
+			//isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_LDSL16IMM: begin
+			encoding = `ENCODING_OPABI;
+			isimmalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_LDSL16; //[7:0] = {4'b0000:opcode[3:0]};
 			
 			isregalu = 0;
 			//isimmalu = 0;
@@ -1100,6 +1152,42 @@ always @(opcode /*posedge decodeclk*/) begin
 			highB = 0;
 			highC = 0;
 		end
+		// We could probably just match the top four bits here, but it might help to be
+		// clear about each sub-operation:
+		`OP_XLU_0, `OP_XLU_1, `OP_XLU_2, `OP_XLU_3,
+		`OP_XLU_4, `OP_XLU_5, `OP_XLU_6, `OP_XLU_7,
+		`OP_XLU_8, `OP_XLU_9, `OP_XLU_A, `OP_XLU_B,
+		`OP_XLU_C, `OP_XLU_D, `OP_XLU_E, `OP_XLU_F: begin
+			encoding = `ENCODING_OPXLU;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = ins[4:0];
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
 		default: begin
 			isregalu = 0;
 			isimmalu = 0;
@@ -1473,6 +1561,10 @@ always @(op) begin
 		end
 		`ALU_LOADC: begin
 			outA = inC;
+			aluvalid = 1;
+		end
+		`ALU_LDSL16: begin
+			outA = (inB << 16) | (inC & 64'h000000000000FFFF);
 			aluvalid = 1;
 		end
 		default: begin
