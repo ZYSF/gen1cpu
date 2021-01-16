@@ -30,6 +30,9 @@ wire writemem;
 wire writeio;
 reg ready = 0;
 wire sysmode;
+wire critical;
+wire [15:0] cpout;
+reg [15:0] cpin = 0;
 wire dblflt;
 reg busx = 0;
 reg hwx = 0;
@@ -57,7 +60,7 @@ always @(posedge clk) begin
 end
 
 //module SimpleCore(clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,dblflt,busx,hwx,hwxa,stage)
-SimpleCore core(count[24], reset, address, dsize, din, dout, readins, readmem, readio, writemem, writeio, ready, sysmode, dblflt, busx, hwx, hwxa, gpioain, gpioaout, stage);
+SimpleCore core(count[24], reset, address, dsize, din, dout, readins, readmem, readio, writemem, writeio, ready, sysmode, critical, dblflt, busx, hwx, hwxa, cpin, cpout, gpioain, gpioaout, stage);
 
 /*assign LED0 = !sysmode;
 assign LED1 = !dblflt;
