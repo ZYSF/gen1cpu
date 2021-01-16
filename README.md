@@ -6,15 +6,25 @@ Implemented in Verilog and featuring a custom-designed instruction set (complete
 
 Designed to be deployed in microcontrollers (MCUs) for security-sensitive devices (particularly robotics and communications devices), but not yet adequately-tested or extended for real world use. May be more applicable to general-purpose computing in the future, but security concerns are prioritised over efficiency concerns.
 
+## Current Status
+
+As of early 2021, I'm still actively adding features and tools. The main feature which is lacking at the moment is a proper test suite (and any resulting bugfixes!), but additional optimisations and other features would also be desirable.
+
+"Proper test suite" will probably have to begin with simulated builds for practical reasons, while some (limited) informal testing has already been done both on Cyclone 10 FPGA and by simulating in Icarus Verilog.
+
 ## Features
 
-* Basic integer maths (other operations can be added easily for larger designs)
-* Basic control flow (decision-making, looping and function calls)
-* Basic system-mode/user-mode functionality, complete with mode switching, invalid-instruction handling and interrupt handling
-* Built-in timer peripheral (so multitasking can be implemented without any additional peripherals, TODO: test that)
-* Reasonably lightweight (may not fit on all embedded FPGAs but should on recent/mid-range ones, very small codebase)
-* Custom [instruction set](InstructionSet.md) with no proprietary tricks (as far as I know I haven't used anything which aligns to any particular proprietary ISA, and the code is PUBLIC DOMAIN)
-* Supports up to 256 general-purpose registers, with up to 16 being accessible in instructions with limited space
+* Custom [instruction set](InstructionSet.md) (no copying of proprietary encodings)
+* Reasonably lightweight 64-bit implementation (very small codebase and suitable for convenient FPGA boards and 32-bit memory interfaces)
+* Basic integer maths (addition, subtraction, shifting, and/or/xor)
+* Basic control flow (comparisons, looping and function calls)
+* System-mode/user-mode functionality, complete with mode switching
+* Exception handling (so you can recover from invalid/disabled instructions, bus errors, hardware interrupts and the like)
+* Double-fault detection (if exception handling is misconfigured your code gets killed immediately and the core goes into a special mode until reset)
+* Built-in timer peripheral (so multitasking can be implemented without any additional peripherals)
+* Supports up to 256 general-purpose registers for basic operations (restricted to 16 in instructions with limited space)
+* Extensible ALU encoding (larger implementations can define many additional math operations using the `xlu` encoding)
+* Able to load constant values up to 24 bits in a single instruction (with a special instruction for appending additional bits for larger constants)
 * Two options for I/O: A direct 64-bit core-to-pin interface ("GPIOA"), or a classic I/O bus with similar semantics to the memory bus
 * Basic feature detection (at least can check major version number and number of registers)
 
