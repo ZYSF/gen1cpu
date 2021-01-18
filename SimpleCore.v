@@ -237,8 +237,8 @@
 
 `define STAGE_ERROR		32
 
-`define FLAGS_INITIAL			64'h0000000000000001
-`define MIRRORFLAGS_INITIAL	64'h0000000000000001
+`define FLAGS_INITIAL			64'h1111111100000001
+`define MIRRORFLAGS_INITIAL	64'h1111111100000001
 /* Defines the value of the CPUID register, which should identify basic features/version as well as a vendor id.
  * Low byte is the maximum addressable register, next is ISA version, then number of MMU slots, high bytes are a
  * signature.
@@ -294,9 +294,9 @@ wire [63:0] imm24 = {ext24, ins[23:0]};
 assign imm = (encoding == `ENCODING_OPL24) ? imm24 : imm16;
 
 /* The registers are easy to decode in ABC-format instructions but need some specialisation/defaults for others. */
-assign regA = (encoding == `ENCODING_OPABC) ? ins[23:16] : ((encoding == `ENCODING_OPABI) ? ins[23:20] : (((encoding == `ENCODING_OPL24) || (encoding == `ENCODING_OPXLU)) ? ins[27:24] : 0));
-assign regB = (encoding == `ENCODING_OPABC) ? ins[15:8] : ((encoding == `ENCODING_OPABI) ? ins[19:16] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[23:20] : 0));
-assign regC = (encoding == `ENCODING_OPABC) ? ins[7:0] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[19:16] : 0);
+assign regA = (encoding == `ENCODING_OPABC) ? ins[23:16] : ((encoding == `ENCODING_OPABI) ? ins[23:20] : (((encoding == `ENCODING_OPL24) || (encoding == `ENCODING_OPXLU)) ? ins[27:24] : 8'b0));
+assign regB = (encoding == `ENCODING_OPABC) ? ins[15:8] : ((encoding == `ENCODING_OPABI) ? ins[19:16] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[23:20] : 8'b0));
+assign regC = (encoding == `ENCODING_OPABC) ? ins[7:0] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[19:16] : 8'b0);
 
 always @(opcode /*posedge decodeclk*/) begin
 	case (opcode)
@@ -1244,8 +1244,9 @@ end
 
 endmodule
 
-module SimpleRegisters(reset, regA, regB, regC, write, highA, highB, highC, inA, outB, outC, regvalid);
+module SimpleRegisters(reset, maxreg, regA, regB, regC, write, highA, highB, highC, inA, outB, outC, regvalid);
 input reset;
+input [7:0] maxreg;
 input [7:0] regA;
 input [7:0] regB;
 input [7:0] regC;
@@ -1528,7 +1529,7 @@ end
 
 assign outB = highB ? regs[regB[3:0]][31:0] : regs[regB[3:0]];
 assign outC = highC ? regs[regC[3:0]][31:0] : regs[regC[3:0]];
-assign regvalid = ((regA[7:4] == 0) && (regB[7:4] == 0) && (regC[7:4] == 0)) ? 1'b1 : 1'b0;
+assign regvalid = ((regA[7:4] == 0) && (regB[7:4] == 0) && (regC[7:4] == 0)) && ((regA <= maxreg) && (regB <= maxreg) && (regC <= maxreg)) ? 1'b1 : 1'b0;
 
 endmodule
 
@@ -1576,7 +1577,7 @@ wire calcerr = (cfgsys && !sysmode) || (read && !cfgread) || (write && !cfgwrite
 /* Set the matchout, addrout and errout fields (using blanks if there's no match). */
 assign matchout = calcmatch;
 assign addrout = (calcmatch && !calcerr) ? calcaddr : 0;
-assign errout = calcmatch ? calcerr : 0;
+assign errout = calcmatch ? calcerr : 1'b0;
 endmodule
 
 module SimpleMMUx8(enabled, dsize, addrin, addrout, errout, sysmode, read, write, instr, io,
@@ -1860,6 +1861,7 @@ wire hwxenable = flags[3:3];
 wire cpxenable = flags[4:4];
 assign critical = flags[5:5];
 wire mmuenable = flags[6:6];
+wire [7:0] maxreg = flags[15:8];
 
 wire isregalu;
 wire isimmalu;
@@ -1898,7 +1900,7 @@ wire [63:0]regOutC;
 wire regvalid;
 reg reallyregwrite = 0;
 
-SimpleRegisters registers(reset, regA, regB, regC, reallyregwrite || reset, highA, highB, highC, regInA, regOutB, regOutC, regvalid);
+SimpleRegisters registers(reset, maxreg, regA, regB, regC, reallyregwrite || reset, highA, highB, highC, regInA, regOutB, regOutC, regvalid);
 
 wire [63:0]aluOutA;
 wire [63:0]aluInB = regOutB;
