@@ -176,17 +176,36 @@
 `define ALU_LOADC			5'h10
 `define ALU_DIVS			5'h11
 
-`define CTRL_CPUID			4'h0
-`define CTRL_EXCN				4'h1
-`define CTRL_FLAGS			4'h2
-`define CTRL_MIRRORFLAGS	4'h3
-`define CTRL_XADDR			4'h4
-`define CTRL_MIRRORXADDR	4'h5
-`define CTRL_TIMER0			4'h6
-`define CTRL_SYSTEM0			4'h8  // This one has no hard-coded purpose. It's mostly designed for holding task info in an operating system.
-`define CTRL_SYSTEM1			4'h9  // This is another control register for storing system-specific stuff.
-`define CTRL_GPIOA_PINS		4'hA	// GPIO A = CTRL #A. Almost by design.
-`define CTRL_PROCESSORS		4'hF	// Used for controlling parallel processors
+`define CTRL_CPUID			6'h0
+`define CTRL_EXCN				6'h1
+`define CTRL_FLAGS			6'h2
+`define CTRL_MIRRORFLAGS	6'h3
+`define CTRL_XADDR			6'h4
+`define CTRL_MIRRORXADDR	6'h5
+`define CTRL_TIMER0			6'h6
+`define CTRL_SYSTEM0			6'h8  // This one has no hard-coded purpose. It's mostly designed for holding task info in an operating system.
+`define CTRL_SYSTEM1			6'h9  // This is another control register for storing system-specific stuff.
+`define CTRL_GPIOA_PINS		6'hA	// GPIO A = CTRL #A. Almost by design.
+`define CTRL_MMU_CFG			6'hE	// Interface for MMU info (not used right now)
+`define CTRL_PROCESSORS		6'hF	// Used for controlling parallel processors
+
+// The 0x1x and 0x2x range of control registers are used for the lower slots of the MMU
+`define CTRL_MMU_X0			6'h10
+`define CTRL_MMU_Y0			7'h20
+`define CTRL_MMU_X1			6'h11
+`define CTRL_MMU_Y1			7'h21
+`define CTRL_MMU_X2			6'h12
+`define CTRL_MMU_Y2			7'h22
+`define CTRL_MMU_X3			6'h13
+`define CTRL_MMU_Y3			7'h23
+`define CTRL_MMU_X4			6'h14
+`define CTRL_MMU_Y4			7'h24
+`define CTRL_MMU_X5			6'h15
+`define CTRL_MMU_Y5			7'h25
+`define CTRL_MMU_X6			6'h16
+`define CTRL_MMU_Y6			7'h26
+`define CTRL_MMU_X7			6'h17
+`define CTRL_MMU_Y7			7'h27
 
 `define EXCN_BADDOG			1		// Unable to fetch instruction (i.e. bad instruction address or fatal bus error)
 `define EXCN_INVALIDINSTR	2		// Instruction was fetched but not recognised as valid by the decoder
@@ -206,7 +225,7 @@
 `define STAGE_GETBUS		4
 `define STAGE_SAVE		5
 `define STAGE_CLEANUP	6
-`define STAGE_DECODEHACK 7
+//`define STAGE_DECODEHACK 7
 //`define STAGE_EXECUTE	3
 //`define STAGE_RW1			4
 
@@ -221,9 +240,14 @@
 `define FLAGS_INITIAL			64'h0000000000000001
 `define MIRRORFLAGS_INITIAL	64'h0000000000000001
 /* Defines the value of the CPUID register, which should identify basic features/version as well as a vendor id.
- * Low byte is the maximum addressable register, next is ISA version, high bytes are a signature.
+ * Low byte is the maximum addressable register, next is ISA version, then number of MMU slots, high bytes are a
+ * signature.
+ *
+ * NOTE: Additional CPUID-like registers will probably be added in the future to detect other features (e.g. which
+ * timer devices are present, what the actual CPU number is, and probably some way for the external bus to give some
+ * additional configuration data too).
  */
-`define CPUIDVALUE				64'h5A5953460000010F
+`define CPUIDVALUE				64'h5A5953460007010F
 
 module SimpleDecoder(/*decodeclk, */ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
 //input decodeclk;
@@ -1504,9 +1528,133 @@ end
 
 assign outB = highB ? regs[regB[3:0]][31:0] : regs[regB[3:0]];
 assign outC = highC ? regs[regC[3:0]][31:0] : regs[regC[3:0]];
-assign regvalid = ((regA[7:4] == 0) && (regB[7:4] == 0) && (regC[7:4] == 0)) ? 1 : 0;
+assign regvalid = ((regA[7:4] == 0) && (regB[7:4] == 0) && (regC[7:4] == 0)) ? 1'b1 : 1'b0;
 
 endmodule
+
+/* An MMU slot holds a single set of configuration registers which can match up to about 64MB of the address space
+ * (with sizes in multiples of two starting at 1KB).
+ */
+module SimpleMMUSlot(dsize, addrin, addrout, matchout, errout, sysmode, read, write, instr, io, cfgX, cfgY);
+input [1:0] dsize;
+input [63:0] addrin;
+output [63:0] addrout;
+output matchout;
+output errout;
+input sysmode;
+input read;
+input write;
+input instr;
+input io;
+input [63:0] cfgX;
+input [63:0] cfgY;
+
+/* Decode the configuration */
+wire [63:0] cfginaddr = (cfgX & 64'b1111111111111111111111111111111111111111111111111111110000000000);
+wire [63:0] cfgoutaddr = (cfgY & 64'b1111111111111111111111111111111111111111111111111111110000000000);
+wire [63:0] cfgsize = (64'b1000000000) << (cfgX[3:0]);
+wire [63:0] cfgendaddr = cfginaddr + cfgsize;
+wire cfgsys = cfgX[4:4];
+wire cfgread = cfgX[5:5];
+wire cfgwrite = cfgX[6:6];
+wire cfginstr = cfgX[7:7];
+wire cfgio = cfgX[8:8];
+wire cfgenabled = cfgX[9:9];
+/* Note, lower bits of cfgY are unused */
+
+/* Determine if it matched (and keep this in an internal wire since we use it as an input later. */
+wire [63:0] usedbytes = 64'b1 << dsize;
+wire calcmatch = cfgenabled && (io == cfgio) && (addrin >= cfginaddr) && (addrin + usedbytes <= cfgendaddr);
+
+/* Decode the address & errors as though it matched anyway (we decide at the end if it goes to output). */
+wire [63:0] calcaddr = cfgoutaddr + (addrin - cfginaddr);
+/* System-configured slots can only be accessed in sysmode, whereas reading/writing/instruction-fetching each
+ * have an enabling flag in cfgX.
+ */
+wire calcerr = (cfgsys && !sysmode) || (read && !cfgread) || (write && !cfgwrite) || (instr && !cfginstr);
+
+/* Set the matchout, addrout and errout fields (using blanks if there's no match). */
+assign matchout = calcmatch;
+assign addrout = (calcmatch && !calcerr) ? calcaddr : 0;
+assign errout = calcmatch ? calcerr : 0;
+endmodule
+
+module SimpleMMUx8(enabled, dsize, addrin, addrout, errout, sysmode, read, write, instr, io,
+	cfgX0, cfgY0, cfgX1, cfgY1, cfgX2, cfgY2, cfgX3, cfgY3,
+	cfgX4, cfgY4, cfgX5, cfgY5, cfgX6, cfgY6, cfgX7, cfgY7);
+
+input enabled;
+input [1:0] dsize;
+input [63:0] addrin;
+output [63:0] addrout;
+output errout;
+input sysmode;
+input read;
+input write;
+input instr;
+input io;
+input [63:0] cfgX0;
+input [63:0] cfgY0;
+input [63:0] cfgX1;
+input [63:0] cfgY1;
+input [63:0] cfgX2;
+input [63:0] cfgY2;
+input [63:0] cfgX3;
+input [63:0] cfgY3;
+input [63:0] cfgX4;
+input [63:0] cfgY4;
+input [63:0] cfgX5;
+input [63:0] cfgY5;
+input [63:0] cfgX6;
+input [63:0] cfgY6;
+input [63:0] cfgX7;
+input [63:0] cfgY7;
+
+wire [63:0] addr0;
+wire match0;
+wire err0;
+wire [63:0] addr1;
+wire match1;
+wire err1;
+wire [63:0] addr2;
+wire match2;
+wire err2;
+wire [63:0] addr3;
+wire match3;
+wire err3;
+wire [63:0] addr4;
+wire match4;
+wire err4;
+wire [63:0] addr5;
+wire match5;
+wire err5;
+wire [63:0] addr6;
+wire match6;
+wire err6;
+wire [63:0] addr7;
+wire match7;
+wire err7;
+
+SimpleMMUSlot slot0(dsize, addrin, addr0, match0, err0, sysmode, read, write, instr, io, cfgX0, cfgY0);
+SimpleMMUSlot slot1(dsize, addrin, addr1, match1, err1, sysmode, read, write, instr, io, cfgX1, cfgY1);
+SimpleMMUSlot slot2(dsize, addrin, addr2, match2, err2, sysmode, read, write, instr, io, cfgX2, cfgY2);
+SimpleMMUSlot slot3(dsize, addrin, addr3, match3, err3, sysmode, read, write, instr, io, cfgX3, cfgY3);
+SimpleMMUSlot slot4(dsize, addrin, addr4, match4, err4, sysmode, read, write, instr, io, cfgX4, cfgY4);
+SimpleMMUSlot slot5(dsize, addrin, addr5, match5, err5, sysmode, read, write, instr, io, cfgX5, cfgY5);
+SimpleMMUSlot slot6(dsize, addrin, addr6, match6, err6, sysmode, read, write, instr, io, cfgX6, cfgY6);
+SimpleMMUSlot slot7(dsize, addrin, addr7, match7, err7, sysmode, read, write, instr, io, cfgX7, cfgY7);
+
+wire calcmatch = (match0 ? 1'b1 : (match1 ? 1'b1 : (match2 ? 1'b1 : (match3 ? 1'b1
+	: (match4 ? 1'b1 : (match5 ? 1'b1 : (match6 ? 1'b1 : (match7 ? 1'b1 : 1'b0))))))));
+wire [63:0] calcaddr = (match0 ? addr0 : (match1 ? addr1 : (match2 ? addr2 : (match3 ? addr3
+	: (match4 ? addr4 : (match5 ? addr5 : (match6 ? addr6 : (match7 ? addr7 : 64'b0))))))));
+wire calcerr = (match0 ? err0 : (match1 ? err1 : (match2 ? err2 : (match3 ? err3
+	: (match4 ? err4 : (match5 ? err5 : (match6 ? err6 : (match7 ? err7 : 1'b0))))))));
+
+assign addrout = enabled ? calcaddr : addrin;
+assign errout = enabled ? (calcerr || !calcmatch) : 1'b0;
+
+endmodule	
 
 module SimpleALU(op, outA, inB, inC, aluvalid);
 input [4:0]op;
@@ -1647,23 +1795,23 @@ end
 
 endmodule
 
-module SimpleCore(clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,critical,dblflt,busx,hwx,hwxa,cpx,cpxa,cpin,cpout,gpioain,gpioaout,stage);
+module SimpleCore(clock,reset,final_address,final_dsize,din,final_dout,final_readins,final_readmem,final_readio,final_writemem,final_writeio,ready,sysmode,critical,dblflt,outer_busx,hwx,hwxa,cpx,cpxa,cpin,cpout,gpioain,gpioaout,stage);
 input clock;
 input reset;
-output reg [63:0] address;
-output reg [1:0] dsize;
+output [63:0] final_address;
+output [1:0] final_dsize;
 input [63:0] din;
-output reg [63:0] dout;
-output reg readins;
-output reg readmem;
-output reg readio;
-output reg writemem;
-output reg writeio;
+output [63:0] final_dout;
+output final_readins;
+output final_readmem;
+output final_readio;
+output final_writemem;
+output final_writeio;
 input ready;
 output sysmode;
 output critical;
 output reg dblflt;
-input busx;
+input outer_busx;
 input hwx;
 output reg hwxa;
 input cpx;
@@ -1674,6 +1822,16 @@ input [63:0] gpioain;
 output reg [63:0] gpioaout;
 
 output reg [5:0] stage = 0;
+
+reg [63:0] address;
+reg [1:0] dsize;
+reg [63:0] dout;
+reg readins;
+reg readmem;
+reg readio;
+reg writemem;
+reg writeio;
+wire busx;
 
 reg [5:0] nstage = 0;
 
@@ -1701,6 +1859,7 @@ wire tmxenable = flags[2:2];
 wire hwxenable = flags[3:3];
 wire cpxenable = flags[4:4];
 assign critical = flags[5:5];
+wire mmuenable = flags[6:6];
 
 wire isregalu;
 wire isimmalu;
@@ -1753,6 +1912,44 @@ wire [63:0] timerctrlout;
 wire timerinterrupt = timerctrlout[0];
 SimpleTimer timer(clock, reset, timerctrlin, timerctrlout);
 
+reg [63:0] mmuX0;
+reg [63:0] mmuY0;
+reg [63:0] mmuX1;
+reg [63:0] mmuY1;
+reg [63:0] mmuX2;
+reg [63:0] mmuY2;
+reg [63:0] mmuX3;
+reg [63:0] mmuY3;
+reg [63:0] mmuX4;
+reg [63:0] mmuY4;
+reg [63:0] mmuX5;
+reg [63:0] mmuY5;
+reg [63:0] mmuX6;
+reg [63:0] mmuY6;
+reg [63:0] mmuX7;
+reg [63:0] mmuY7;
+wire mmuerr;
+
+SimpleMMUx8(mmuenable, dsize, address, final_address, mmuerr, sysmode, readmem | readio, writemem | writeio, readins, readio | writeio,
+	mmuX0, mmuY0, mmuX1, mmuY1, mmuX2, mmuY2, mmuX3, mmuY3,
+	mmuX4, mmuY4, mmuX5, mmuY5, mmuX6, mmuY6, mmuX7, mmuY7);
+
+/* final_address is already set by the MMU, but we also finalise the other values here. */
+assign final_dout = mmuerr ? 64'b0 : dout;
+assign final_dsize = mmuerr ? 2'b0 : dsize;
+assign final_readins = mmuerr ? 1'b0 : readins;
+assign final_readmem = mmuerr ? 1'b0 : readmem;
+assign final_readio = mmuerr ? 1'b0 : readio;
+assign final_writemem = mmuerr ? 1'b0 : writemem;
+assign final_writeio = mmuerr ? 1'b0 : writeio;
+
+/* Right now, an MMU exception is treated as a bus exception (but they can also be generated for
+ * external accesses that have already gone through the MMU). In the future, these might be split
+ * into distinct exceptions to help operating systems determine the cause of errors (although that
+ * might not be necessary in practice).
+ */
+assign busx = outer_busx | mmuerr;
+
 reg [3:0] excn;
 
 always @(posedge clock) begin
@@ -1763,13 +1960,22 @@ always @(posedge clock) begin
 	end
 end
 
-reg [3:0]ctrln;
+reg [5:0]ctrln;
 
 wire [63:0]ctrlv = (ctrln == `CTRL_FLAGS) ? flags : ((ctrln == `CTRL_MIRRORFLAGS) ? mirrorflags
 	: ((ctrln == `CTRL_XADDR) ? xaddr : ((ctrln == `CTRL_MIRRORXADDR) ? mirrorxaddr
 	: ((ctrln == `CTRL_EXCN) ? excn : ((ctrln == `CTRL_TIMER0) ? timerctrlout
 	: (ctrln == `CTRL_SYSTEM0 ? system0reg : ((ctrln == `CTRL_SYSTEM1) ? system1reg
-	: ((ctrln == `CTRL_GPIOA_PINS) ? gpioain : ((ctrln == `CTRL_PROCESSORS) ? cpin : 0)))))))));
+	: ((ctrln == `CTRL_GPIOA_PINS) ? gpioain : ((ctrln == `CTRL_PROCESSORS) ? cpin
+	: ((ctrln == `CTRL_MMU_X0) ? mmuX0 : ((ctrln == `CTRL_MMU_Y0) ? mmuY0
+	: ((ctrln == `CTRL_MMU_X1) ? mmuX1 : ((ctrln == `CTRL_MMU_Y1) ? mmuY1
+	: ((ctrln == `CTRL_MMU_X2) ? mmuX2 : ((ctrln == `CTRL_MMU_Y2) ? mmuY2
+	: ((ctrln == `CTRL_MMU_X3) ? mmuX3 : ((ctrln == `CTRL_MMU_Y3) ? mmuY3
+	: ((ctrln == `CTRL_MMU_X4) ? mmuX4 : ((ctrln == `CTRL_MMU_Y4) ? mmuY4
+	: ((ctrln == `CTRL_MMU_X5) ? mmuX5 : ((ctrln == `CTRL_MMU_Y5) ? mmuY5
+	: ((ctrln == `CTRL_MMU_X6) ? mmuX6 : ((ctrln == `CTRL_MMU_Y6) ? mmuY6
+	: ((ctrln == `CTRL_MMU_X7) ? mmuX7 : ((ctrln == `CTRL_MMU_Y7) ? mmuY7
+	: 0)))))))))))))))))))))))));
 
 always @(negedge clock) begin
 	if (reset) begin
@@ -1807,6 +2013,23 @@ always @(negedge clock) begin
 		
 		timerctrlin = 0;
 		gpioaout = 0;
+		
+		mmuX0 = 0;
+		mmuY0 = 0;
+		mmuX1 = 0;
+		mmuY1 = 0;
+		mmuX2 = 0;
+		mmuY2 = 0;
+		mmuX3 = 0;
+		mmuY3 = 0;
+		mmuX4 = 0;
+		mmuY4 = 0;
+		mmuX5 = 0;
+		mmuY5 = 0;
+		mmuX6 = 0;
+		mmuY6 = 0;
+		mmuX7 = 0;
+		mmuY7 = 0;
 	end else begin
 		case (stage)
 			/* The INITIAL stage either happens after the end of the previous instruction, or directly after a reset.
@@ -2009,6 +2232,38 @@ always @(negedge clock) begin
 						gpioaout = regOutC;
 					end else if (ctrlwrite && (ctrln == `CTRL_PROCESSORS)) begin
 						cpout = regOutC[15:0];
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X0)) begin
+						mmuX0 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y0)) begin
+						mmuY0 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X1)) begin
+						mmuX1 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y1)) begin
+						mmuY1 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X2)) begin
+						mmuX2 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y2)) begin
+						mmuY2 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X3)) begin
+						mmuX3 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y3)) begin
+						mmuY3 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X4)) begin
+						mmuX4 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y4)) begin
+						mmuY4 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X5)) begin
+						mmuX5 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y5)) begin
+						mmuY5 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X6)) begin
+						mmuX6 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y6)) begin
+						mmuY6 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_X7)) begin
+						mmuX7 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y7)) begin
+						mmuY7 = regOutC;
 					end
 				end
 				nstage = `STAGE_INITIAL;
