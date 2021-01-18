@@ -9,7 +9,7 @@ These are basically the same thing, so you can expect the processor core to be i
 * All general-purpose registers are cleared to zero
 * Any timer counters are cleared to zero
 * The `CTRL_SYSTEM0` control register is cleared to zero
-* The flags and mirrorflags are set to constant values (currently, both the value 1, which means system mode is the only flag specifically enabled)
+* The flags and mirrorflags are set to constant values (currently, both the value 1 `or`-ed with the mask enabling each register, which means system mode and the registers are the only flags specifically enabled, while MMU and exceptions are disabled)
 * `CTRL_TIMER`, `CTRL_GPIOA`, `CTRL_XADDR` and other control registers should be cleared to default or zero
 * The program counter is _by default_ initialised to zero, which means the core starts running code from instructions at address zero (although this might be made easier-to-change in the future)
 
