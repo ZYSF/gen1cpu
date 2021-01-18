@@ -20,7 +20,7 @@ A "proper test suite" would probably have to begin with simulated builds for pra
 * Basic control flow (comparisons, looping and function calls)
 * Exception handling (so you can recover from invalid/disabled instructions, bus errors, hardware interrupts and the like)
 * System-mode/user-mode switching and ability to accurately save/restore program state
-* Real-Time Memory Management Unit with support for up to 8 very-flexible pages/segments mapped simultaneously (this is *new* and *untested*)
+* Real-Time Memory Management Unit with support for 8 or more flexible pages/segments mapped simultaneously (this is *new* and *untested*)
 * Double-fault detection (if exception handling is misconfigured the core goes into a special mode until reset)
 * Built-in timer peripheral (so multitasking can be implemented without any additional peripherals)
 * Supports up to 256 general-purpose registers for basic operations (restricted to 16 "standard registers" for instructions with limited space)
