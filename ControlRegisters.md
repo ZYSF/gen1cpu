@@ -26,13 +26,15 @@ This control register will reveal information about the current CPU state, such 
 * Hwxenable (fourth-lowest bit) determines whether external hardware exceptions are enabled (if this is clear they will just be ignored)
 * Cpxenable (fifth-lowest bit) determines whether exceptions from other processors are enabled (this feature is only partly implemented)
 * Critical (sixth-lowest bit) is meant to be set when entering a critical section (so the bus can stop other processors until a synchronised operation is complete)
-* Mmuenable (seventth-lowest bit) will enable the Real-Time MMU, which is expected to have any necessary slots configured before enabling
+* Mmuenable (seventh-lowest bit) will enable the Real-Time MMU, which is expected to have any necessary slots configured before enabling
+
+The remainder of the lowest byte is reserved for flags, with the next byte holding the register protection setting (which defines the maximum addressable register). That is, if you set the third byte to e.g. `7`, then accessing register `8` would cause an exception rather than working correctly. However, the value of higher registers is preserved even while they are disabled. This can be set higher than the number of available registers (and defaults to `255`), in which case obviously registers are limited to those which are physically available (error handling works the same whether a register is disabled in software or doesn't exist in hardware).
 
 ## CTRL_MIRRORFLAGS (3)
 
 This is the "mirror" of the flags register, which gets swapped with the flags register during a mode switch.
 
-In order to set specific flags, you have to apply them to the mirrorflags control register first and then perform the mode-switch to apply them.
+In order to set specific flags, best practice is generally to apply them to the mirrorflags control register first and then perform the mode-switch to apply them (this ensures that e.g. if you're enabling the MMU then you can perform the switch startring from instructions in a physical memory location and arrive at instructions in MMU-valid memory after the switch). Note that, while switching modes and performing associated operations, it's generally necessary to disable exceptions until the new mode has been set up correctly (this may mean a couple of lower-level mode switches are required to safely perform one complete/logical "mode switch" - although in some cases it may suffice to just leave exceptions disabled until e.g. returning to user mode).
 
 ## CTRL_XADDR (4)
 
