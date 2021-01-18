@@ -98,10 +98,11 @@ This control register is effectively like a limited version of the GPIOA bus (it
 
 ## CTRL_MMU_X0 (0x10), CTRL_MMU_Y0 (0x20), CTRL_MMU_X1 (0x11), CTRL_MMU_Y1 (0x21), etc.
 
-These are used for each of the (by default 8) slots of the Real-Time MMU:
+These are used for configuring each of the (by default 8) slots of the Real-Time MMU:
 
 * Each `X` register determines the (1KB-aligned) virtual address of the page/segment, with size and flags in the lower bits
 * Each `Y` register determines the (1KB-aligned) physical address which accesses to that page/segment get converted to (with lower bits reserved for future use)
+* In normal operation, if the size/flags match, virtual addresses starting at `X` get converted to physical addresses starting at `Y`
 
 The MMU is only active when the correpsonding `mmuenable` processor flag is set, so in other cases (assuming the MMU is present) you can use these as additional internal storage. You could even use the `Y` registers and the higher bits of `X` for custom data without enabling the registers (if they're not enabled, none of their contents will be used).
 
