@@ -57,7 +57,7 @@ always @(posedge clk) begin
 		ready = 0;
 		busx = 0;
 	end
-end
+end 
 
 //module SimpleCore(clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,dblflt,busx,hwx,hwxa,stage)
 SimpleCore core(count[24], reset, address, dsize, din, dout, readins, readmem, readio, writemem, writeio, ready, sysmode, critical, dblflt, busx, hwx, hwxa, cpin, cpout, gpioain, gpioaout, stage);
