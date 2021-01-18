@@ -2,6 +2,8 @@
 
 This document is intended to clarify the design of the memory, I/O, instruction and control-register addressing.
 
+NOTE: As is usual in low-level devices and software, addresses or indices of different kinds generally start at zero. That is, the lowest possible memory address or register index is zero.
+
 ## Addressing Instructions
 
 Instructions are always exactly 32 bits (4 bytes) in length (unless any e.g. compressed instruction modes are added in the future).
@@ -10,11 +12,12 @@ Instruction addresses are expected to be byte addresses (i.e. the address of an 
 
 Instruction addresses, internally at least, are the same size as the internal registers (that is, 64 bits for the default implementation - or perhaps 32 bits for a smaller one).
 
-This can obviously be wasteful or restrictive in a few cases (hence why some architectures support multiple instruction sizes), but it is helpful for a few reasons:
+This can obviously be wasteful or restrictive in a few cases (hence why some architectures support multiple instruction sizes), but this design is very practical for a few reasons:
 
 1. It's a convenient size for most instructions and we don't have to worry too much about running out of encoding space for adding new instructions
 2. It makes it easy to determine the address of the current/next instruction with fewer edge-cases (e.g. you'll never get an exception from reading the second part of an instruction)
 3. It's a convenient size for an internal memory bus (an 8-bit or 16-bit bus would be slow whereas a 64-bit bus would waste a lot of wires & logic most of the time)
+4. It can be easier for software tools such as assemblers & debuggers to deal with
 
 ## Addressing Memory
 
@@ -48,7 +51,17 @@ Control registers (which are like special/internal memory for controlling core f
 2. They're just numbered one-by-one, rather than using byte addresses
 3. They're always the same size as the internal registers, so 64-bit by default (the effective size depends on the control register, but they are always treated as though they're the same size by instructions)
 4. The memory management unit doesn't apply any translations to control registers
-5. Like the I/O bus (but unlike memory or instructions) access to control registers is currently disabled entirely unless operating in system mode
+5. Like the I/O bus (but unlike memory or instructions) attempting to access control registers from user-mode will trigger an exception
+
+## Addressing General-Purpose Registers
+
+General-purpose registers are encoded explicitly in instructions (an instruction will never use any registers implicitly), either using 4 bits or 8 bits depending on the instruction. This means that up to 256 general-purpose instructions can be accessed, but only the more basic operations can be applied to the higher ones (the first 16 registers can be used anywhere though).
+
+Different implementations of the processor can have different numbers of physical registers, with 16 being a convenient default number (this can be detected from the `CTRL_CPUID` control register). The practical minimum would probably be around 3 or 4, but anywhere from about 8-32 might be considered a fair compromise for general-purpose computing (having less registers generally means relying on much more memory access).
+
+The number of accessible registers can be changed using the `CTRL_FLAGS` control register. This is called register protection, because the operating system or it's important security programs can have exclusive control over the higher registers while only having to swap out the lower registers which it needs enabled to run regular user software.
+
+If an instruction references a general-purpose register which is either not implemented in hardware or which has been disabled by the protection mechanism, then an appropriate exception will be triggered instead of executing the instruction.  By this mechanism, a processor with a lower number of registers can still run user-mode programs designed for a larger implementation, but the operating system would need to provide emulation for the out-of-range ones.
 
 ## The Real-Time Memory Management Unit (MMU)
 
