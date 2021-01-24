@@ -207,6 +207,25 @@
 `define CTRL_MMU_X7			6'h17
 `define CTRL_MMU_Y7			7'h27
 
+// The 0x3x range of control registers is used to configure instruction overloading
+// These registers are 32-bit (for the sake of working the same on 32-bit implementations)
+// each bit represents a combination of major+minor opcode; If overlord mode is enabled
+// and that instruction is reached it will trigger an overlord instruction exception instead
+// of executing that instruction, regardless of whether or not the processor supports that
+// particular instruction.
+// This serves a few purposes, including the ability to patch instruction-specific bugs in
+// software if necessary and the ability to emulate extended instructions on earlier versions
+// of hardware (without being limited to emulating only those instructions not being defined
+// in hardware).
+`define CTRL_OVERLORD_0		7'h30
+`define CTRL_OVERLORD_1		7'h30
+`define CTRL_OVERLORD_2		7'h30
+`define CTRL_OVERLORD_3		7'h30
+`define CTRL_OVERLORD_4		7'h30
+`define CTRL_OVERLORD_5		7'h30
+`define CTRL_OVERLORD_6		7'h30
+`define CTRL_OVERLORD_7		7'h30
+
 `define EXCN_BADDOG			1		// Unable to fetch instruction (i.e. bad instruction address or fatal bus error)
 `define EXCN_INVALIDINSTR	2		// Instruction was fetched but not recognised as valid by the decoder
 `define EXCN_SYSMODEINSTR	3		// Instruction was fetched and could presumably be decoded, but requires system mode and was run in user mode
@@ -217,6 +236,7 @@
 `define EXCN_DINGDONG		9		// This exception is triggered by the internal timer unit (if enabled) i.e. for multitasking or other regular checks
 `define EXCN_HARDWARE		10		//	This exception is triggered by external hardware, typically an interrupt controller (which should have it's own mechanism for interrupt numbers)
 `define EXCN_COPROCESSOR	11		// This exception is triggered explicitly by another processor core (i.e. for synchronisation)
+`define EXCN_OVERLORDINSTR	12		// This exception is triggered (similarly to INVALIDINSTR) if the instruction is overloaded
 
 `define STAGE_INITIAL	0
 `define STAGE_FETCH		1
@@ -1244,6 +1264,63 @@ end
 
 endmodule
 
+/* This is designed to fit straight over the top of SimpleDecoder and handle some edge cases like overloading and endian-swapping. */
+module SimpleOverlordDecoder(/*decodeclk, */rawins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, enableoverlord, swapinstrend, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
+//input decodeclk;
+input [31:0] rawins;
+output isregalu;
+output isimmalu;
+output isvalid;
+output issystem;
+output wire [7:0]regA;
+output wire [7:0]regB;
+output wire [7:0]regC;
+output regwrite;
+output [4:0]aluop;
+output [63:0]imm;
+output [1:0]valsize;
+output ctrlread;
+output ctrlwrite;
+output dataread;
+output datawrite;
+output extnread;
+output extnwrite;
+output highA;
+output highB;
+output highC;
+output getpc;
+output setpc;
+output blink;
+output bto;
+output bswitch;
+output bif;
+input enableoverlord;
+input swapinstrend;
+input [31:0] ovld0;
+input [31:0] ovld1;
+input [31:0] ovld2;
+input [31:0] ovld3;
+input [31:0] ovld4;
+input [31:0] ovld5;
+input [31:0] ovld6;
+input [31:0] ovld7;
+output isoverlord;
+
+wire [255:0]ovld = {ovld7, ovld6, ovld5, ovld4, ovld3, ovld2, ovld1, ovld0};
+
+wire [31:0]ins = swapinstrend ? {rawins[7:0],rawins[15:8],rawins[23:16],rawins[31:24]} : rawins;
+wire [7:0] fullopcode = ins[31:24];
+
+assign isoverlord = enableoverlord ? ovld[fullopcode] : 1'b0;
+
+wire inner_isvalid;
+
+SimpleDecoder simpler(isoverlord ? 32'b0 : ins, isregalu, isimmalu, inner_isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
+
+assign isvalid = isoverlord ? 1'b0 : inner_isvalid;
+
+endmodule
+
 module SimpleRegisters(reset, maxreg, regA, regB, regC, write, highA, highB, highC, inA, outB, outC, regvalid);
 input reset;
 input [7:0] maxreg;
@@ -1862,6 +1939,8 @@ wire cpxenable = flags[4:4];
 assign critical = flags[5:5];
 wire mmuenable = flags[6:6];
 wire [7:0] maxreg = flags[15:8];
+wire overlordenable = flags[32:32];
+wire instrendswap = flags[33:33];
 
 wire isregalu;
 wire isimmalu;
@@ -1890,9 +1969,20 @@ wire bto;
 wire bswitch;
 wire bif;
 wire needsbus = dataread || datawrite || extnread || extnwrite;
+
+reg [31:0]ovld0;
+reg [31:0]ovld1;
+reg [31:0]ovld2;
+reg [31:0]ovld3;
+reg [31:0]ovld4;
+reg [31:0]ovld5;
+reg [31:0]ovld6;
+reg [31:0]ovld7;
+wire isoverlord;
+
 //reg decodeclk = 0;
 // (ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, getpc, setpc, blink, bto, bswitch, bif)
-SimpleDecoder decoder(/*decodeclk, */ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
+SimpleOverlordDecoder decoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, overlordenable, instrendswap, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
 
 reg [63:0]regInA;
 wire [63:0]regOutB;
@@ -1977,7 +2067,15 @@ wire [63:0]ctrlv = (ctrln == `CTRL_FLAGS) ? flags : ((ctrln == `CTRL_MIRRORFLAGS
 	: ((ctrln == `CTRL_MMU_X5) ? mmuX5 : ((ctrln == `CTRL_MMU_Y5) ? mmuY5
 	: ((ctrln == `CTRL_MMU_X6) ? mmuX6 : ((ctrln == `CTRL_MMU_Y6) ? mmuY6
 	: ((ctrln == `CTRL_MMU_X7) ? mmuX7 : ((ctrln == `CTRL_MMU_Y7) ? mmuY7
-	: 0)))))))))))))))))))))))));
+	: ((ctrln == `CTRL_OVERLORD_0) ? {32'b0, ovld0}
+	: ((ctrln == `CTRL_OVERLORD_1) ? {32'b0, ovld1}
+	: ((ctrln == `CTRL_OVERLORD_2) ? {32'b0, ovld2}
+	: ((ctrln == `CTRL_OVERLORD_3) ? {32'b0, ovld3}
+	: ((ctrln == `CTRL_OVERLORD_4) ? {32'b0, ovld4}
+	: ((ctrln == `CTRL_OVERLORD_5) ? {32'b0, ovld5}
+	: ((ctrln == `CTRL_OVERLORD_6) ? {32'b0, ovld6}
+	: ((ctrln == `CTRL_OVERLORD_7) ? {32'b0, ovld7}
+	: 0)))))))))))))))))))))))))))))))));
 
 always @(negedge clock) begin
 	if (reset) begin
@@ -2032,6 +2130,15 @@ always @(negedge clock) begin
 		mmuY6 = 0;
 		mmuX7 = 0;
 		mmuY7 = 0;
+		
+		ovld0 = 0;
+		ovld1 = 0;
+		ovld2 = 0;
+		ovld3 = 0;
+		ovld4 = 0;
+		ovld5 = 0;
+		ovld6 = 0;
+		ovld7 = 0;
 	end else begin
 		case (stage)
 			/* The INITIAL stage either happens after the end of the previous instruction, or directly after a reset.
@@ -2098,7 +2205,7 @@ always @(negedge clock) begin
 				dsize = 0;
 				readins = 0;
 				if (!isvalid) begin
-					excn = `EXCN_INVALIDINSTR;
+					excn = isoverlord ? `EXCN_OVERLORDINSTR : `EXCN_INVALIDINSTR;
 					nstage = `STAGE_EXCEPTION;
 				end else if (issystem && !sysmode) begin
 					excn = `EXCN_SYSMODEINSTR;
@@ -2266,6 +2373,22 @@ always @(negedge clock) begin
 						mmuX7 = regOutC;
 					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y7)) begin
 						mmuY7 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_0)) begin
+						ovld0 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_1)) begin
+						ovld1 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_2)) begin
+						ovld2 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_3)) begin
+						ovld3 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_4)) begin
+						ovld4 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_5)) begin
+						ovld5 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_6)) begin
+						ovld6 = regOutC;
+					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_7)) begin
+						ovld7 = regOutC;
 					end
 				end
 				nstage = `STAGE_INITIAL;
