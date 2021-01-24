@@ -1265,7 +1265,7 @@ end
 endmodule
 
 /* This is designed to fit straight over the top of SimpleDecoder and handle some edge cases like overloading and endian-swapping. */
-module SimpleOverlordDecoder(/*decodeclk, */rawins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, enableoverlord, swapinstrend, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
+module SimpleOverlordDecoder(/*decodeclk, */rawins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, enableoverlord, enablerem, swapinstrend, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
 //input decodeclk;
 input [31:0] rawins;
 output isregalu;
@@ -1295,6 +1295,7 @@ output bto;
 output bswitch;
 output bif;
 input enableoverlord;
+input enablerem;
 input swapinstrend;
 input [31:0] ovld0;
 input [31:0] ovld1;
@@ -1309,19 +1310,69 @@ output isoverlord;
 wire [255:0]ovld = {ovld7, ovld6, ovld5, ovld4, ovld3, ovld2, ovld1, ovld0};
 
 wire [31:0]ins = swapinstrend ? {rawins[7:0],rawins[15:8],rawins[23:16],rawins[31:24]} : rawins;
-wire [7:0] fullopcode = ins[31:24];
+wire [7:0] fullopcode = enablerem ? {1'b0, ins[6:0]} : ins[31:24];
 
 assign isoverlord = enableoverlord ? ovld[fullopcode] : 1'b0;
 
-wire inner_isvalid;
+wire base_isregalu;
+wire base_isimmalu;
+wire base_isvalid;
+wire base_issystem;
+wire [7:0] base_regA;
+wire [7:0] base_regB;
+wire [7:0] base_regC;
+wire base_regwrite;
+wire [4:0] base_aluop;
+wire [63:0] base_imm;
+wire [1:0] base_valsize;
+wire base_ctrlread;
+wire base_ctrlwrite;
+wire base_dataread;
+wire base_datawrite;
+wire base_extnread;
+wire base_extnwrite;
+wire base_highA;
+wire base_highB;
+wire base_highC;
+wire base_getpc;
+wire base_setpc;
+wire base_blink;
+wire base_bto;
+wire base_bswitch;
+wire base_bif;
 
-SimpleDecoder simpler(isoverlord ? 32'b0 : ins, isregalu, isimmalu, inner_isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
+SimpleDecoder simpler(isoverlord ? 32'b0 : ins, base_isregalu, base_isimmalu, base_isvalid, base_issystem, base_regA, base_regB, base_regC, base_regwrite, base_aluop, base_imm, base_valsize, base_ctrlread, base_ctrlwrite, base_dataread, base_datawrite, base_extnread, base_extnwrite, base_highA, base_highB, base_highC, base_getpc, base_setpc, base_blink, base_bto, base_bswitch, base_bif);
 
-assign isvalid = isoverlord ? 1'b0 : inner_isvalid;
+assign isregalu = isoverlord ? 1'b0 : base_isregalu;
+assign isimmalu = isoverlord ? 1'b0 : base_isimmalu;
+assign isvalid = isoverlord ? 1'b0 : base_isvalid;
+assign issystem = isoverlord ? 1'b0 : base_issystem;
+assign regA = isoverlord ? 8'b0 : base_regA;
+assign regB = isoverlord ? 8'b0 : base_regB;
+assign regC = isoverlord ? 8'b0 : base_regC;
+assign regwrite = isoverlord ? 1'b0 : base_regwrite;
+assign aluop = isoverlord ? 5'b0 : base_aluop;
+assign imm = isoverlord ? 64'b0 : base_imm;
+assign valsize = isoverlord ? 2'b0 : base_valsize;
+assign ctrlread = isoverlord ? 1'b0 : base_ctrlread;
+assign ctrlwrite = isoverlord ? 1'b0 : base_ctrlwrite;
+assign dataread = isoverlord ? 1'b0 : base_dataread;
+assign datawrite = isoverlord ? 1'b0 : base_datawrite;
+assign extnread = isoverlord ? 1'b0 : base_extnread;
+assign extnwrite = isoverlord ? 1'b0 : base_extnwrite;
+assign highA = isoverlord ? 1'b0 : base_highA;
+assign highB = isoverlord ? 1'b0 : base_highB;
+assign highC = isoverlord ? 1'b0 : base_highC;
+assign getpc = isoverlord ? 1'b0 : base_getpc;
+assign setpc = isoverlord ? 1'b0 : base_setpc;
+assign blink = isoverlord ? 1'b0 : base_blink;
+assign bto = isoverlord ? 1'b0 : base_bto;
+assign bswitch = isoverlord ? 1'b0 : base_bswitch;
+assign bif = isoverlord ? 1'b0 : base_bif;
 
 endmodule
 
-module SimpleRegisters(reset, maxreg, regA, regB, regC, write, highA, highB, highC, inA, outB, outC, regvalid);
+module SimpleRegisters(reset, maxreg, regA, regB, regC, write, highA, highB, highC, inA, outB, outC, regvalid, remenable);
 input reset;
 input [7:0] maxreg;
 input [7:0] regA;
@@ -1335,6 +1386,7 @@ input [63:0] inA;
 output [63:0] outB;
 output [63:0] outC;
 output regvalid;
+input remenable;
 
 reg [63:0]regs[15:0];
 
@@ -1597,15 +1649,15 @@ always @(posedge write) begin
 		regs[253] = 0;
 		regs[254] = 0;
 		regs[255] = 0;*/
-	end else if (regvalid && !highA) begin
+	end else if (regvalid && !highA && !(remenable && inA == 0)) begin
 		regs[regA[3:0]] = inA;
-	end else if (regvalid && highA) begin
+	end else if (regvalid && highA && !(remenable && inA == 0)) begin
 		regs[regA[3:0]][63:32] = inA[31:0];
 	end
 end
 
-assign outB = highB ? regs[regB[3:0]][31:0] : regs[regB[3:0]];
-assign outC = highC ? regs[regC[3:0]][31:0] : regs[regC[3:0]];
+assign outB = (remenable && outB == 0) ? 64'b0 : (highB ? regs[regB[3:0]][31:0] : regs[regB[3:0]]);
+assign outC = (remenable && outC == 0) ? 64'b0 : (highC ? regs[regC[3:0]][31:0] : regs[regC[3:0]]);
 assign regvalid = ((regA[7:4] == 0) && (regB[7:4] == 0) && (regC[7:4] == 0)) && ((regA <= maxreg) && (regB <= maxreg) && (regC <= maxreg)) ? 1'b1 : 1'b0;
 
 endmodule
@@ -1941,6 +1993,7 @@ wire mmuenable = flags[6:6];
 wire [7:0] maxreg = flags[15:8];
 wire overlordenable = flags[16:16];
 wire instrendswap = flags[17:17];
+wire remenable = flags[18:18];
 
 wire isregalu;
 wire isimmalu;
@@ -1982,7 +2035,7 @@ wire isoverlord;
 
 //reg decodeclk = 0;
 // (ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, getpc, setpc, blink, bto, bswitch, bif)
-SimpleOverlordDecoder decoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, overlordenable, instrendswap, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
+SimpleOverlordDecoder decoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, overlordenable, remenable, instrendswap, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
 
 reg [63:0]regInA;
 wire [63:0]regOutB;
@@ -1990,7 +2043,7 @@ wire [63:0]regOutC;
 wire regvalid;
 reg reallyregwrite = 0;
 
-SimpleRegisters registers(reset, maxreg, regA, regB, regC, reallyregwrite || reset, highA, highB, highC, regInA, regOutB, regOutC, regvalid);
+SimpleRegisters registers(reset, maxreg, regA, regB, regC, reallyregwrite || reset, highA, highB, highC, regInA, regOutB, regOutC, regvalid, remenable);
 
 wire [63:0]aluOutA;
 wire [63:0]aluInB = regOutB;
@@ -2374,21 +2427,21 @@ always @(negedge clock) begin
 					end else if (ctrlwrite && (ctrln == `CTRL_MMU_Y7)) begin
 						mmuY7 = regOutC;
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_0)) begin
-						ovld0 = regOutC;
+						ovld0 = regOutC[31:0];
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_1)) begin
-						ovld1 = regOutC;
+						ovld1 = regOutC[31:0];
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_2)) begin
-						ovld2 = regOutC;
+						ovld2 = regOutC[31:0];
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_3)) begin
-						ovld3 = regOutC;
+						ovld3 = regOutC[31:0];
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_4)) begin
-						ovld4 = regOutC;
+						ovld4 = regOutC[31:0];
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_5)) begin
-						ovld5 = regOutC;
+						ovld5 = regOutC[31:0];
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_6)) begin
-						ovld6 = regOutC;
+						ovld6 = regOutC[31:0];
 					end else if (ctrlwrite && (ctrln == `CTRL_OVERLORD_7)) begin
-						ovld7 = regOutC;
+						ovld7 = regOutC[31:0];
 					end
 				end
 				nstage = `STAGE_INITIAL;
