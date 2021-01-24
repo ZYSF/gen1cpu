@@ -6,7 +6,7 @@ The [Unlicense](https://unlicense.org/) is a convenient way of ensuring that cod
 
 ## What Is Meant By Public Domain?
 
-Some countries do not have a concept of public domain (or in some cases like Australia the government don't understand what the word means regardless of the concept), but for everyone else it means "anyone is equally free to use, improve upon and redistribute this". It's only due to countries like Australia which have fuck all in the way of sensible legal structure that it becomes necessary to make these terms so damn explicit.
+Some countries do not have a concept of public domain (or in some cases like Australia the government don't understand what the phrase means but use it anyway like absolute fools), but for everyone else it means "anyone is equally free to use, improve upon and redistribute this". It's only due to countries like Australia which have fuck all in the way of sensible legal structure that it becomes necessary to make these terms so damn explicit.
 
 ## The Text Of The License
 
