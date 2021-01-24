@@ -51,7 +51,7 @@ That being said, I have taken some care to try to avoid incorporating anything w
 
 * The instruction set is entirely custom-designed, using the most obvious encodings and hexadecimal puns, just in case any more-clever/more-efficient ways of encoding instructions have been patented
 * Built-in devices like the Timer and Real-Time Memory Management Unit are designed in the most straightforward possible ways and are free from any non-obvious optimisations
-* I've taken care not to specifically add any instructions or features aimed at being directly equivalent to those in other processors (for example the MMU doesn't work anything like an x86 one, there is no special zero register like on some RISC processors, the GPIO system doesn't have built-in masking like on Propeller)
+* I've taken care not to specifically add any instructions or features aimed at being directly equivalent to those in proprietary processors (for example the MMU doesn't work anything like an x86 one, the GPIO system doesn't have built-in masking like on Propeller)
 
 I accept that there may initially be some patented technologies involved in the manufacturing process, and it may be necessary to include components released under different terms in order to sell useful hardware development kits. These issues can be eliminated in the long term but are not a major concern in the short term.
 
