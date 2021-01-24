@@ -34,6 +34,7 @@ A "proper test suite" would probably have to begin with simulated builds for pra
 
 * The CPU itself is defined entirely in `SimpleCore.v`
 * The `SimpleMCU.v` module is a simple top-level implementation for an FPGA with a few LED outputs and one clock input, this will just run some simple instructions and blink the LEDs
+* `SimpleTests.v` and `SimpleCore-tests.sh` are a simple top-level and test script for use with Icarus Verilog and Bash (NOTE: The testing isn't very formal yet but this should be enough to get started stepping through instructions and seeing if they work)
 
 ## Documentation
 
