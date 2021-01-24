@@ -13,7 +13,7 @@ reg [31:0]count = 0;
 reg reset = 1;
 
 always @(posedge clk) begin
-	if (count[25]) reset = 0;
+	if (count[10]) reset = 0;
 end
 always @(negedge clk) begin
 	count = count + 1;
@@ -36,7 +36,9 @@ reg [15:0] cpin = 0;
 wire dblflt;
 reg busx = 0;
 reg hwx = 0;
+reg cpx = 0;
 wire hwxa;
+wire cpxa;
 wire [5:0]stage;
 reg [63:0] gpioain = 0;
 wire [63:0] gpioaout;
@@ -59,8 +61,8 @@ always @(posedge clk) begin
 	end
 end 
 
-//module SimpleCore(clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,dblflt,busx,hwx,hwxa,stage)
-SimpleCore core(count[24], reset, address, dsize, din, dout, readins, readmem, readio, writemem, writeio, ready, sysmode, critical, dblflt, busx, hwx, hwxa, cpin, cpout, gpioain, gpioaout, stage);
+// module SimpleCore(clock,reset,final_address,final_dsize,din,final_dout,final_readins,final_readmem,final_readio,final_writemem,final_writeio,ready,sysmode,critical,dblflt,outer_busx,hwx,hwxa,cpx,cpxa,cpin,cpout,gpioain,gpioaout,stage);
+SimpleCore core(count[9], reset, address, dsize, din, dout, readins, readmem, readio, writemem, writeio, ready, sysmode, critical, dblflt, busx, hwx, hwxa, cpx, cpxa, cpin, cpout, gpioain, gpioaout, stage);
 
 /*assign LED0 = !sysmode;
 assign LED1 = !dblflt;
