@@ -34,6 +34,18 @@ The quality will be comparable once sufficient testing has been performed (I wou
 
 Unless anyone can explain clearly how mode switching, exception handling and memory protection work in ARM or RISC-V without using a whole bunch of model numbers and other jargon, I'm going to say mine's significantly better.
 
+## Peripherals & I/O
+
+This processor comes with a standard timer, a standard GPIO interface, a dedicated I/O bus with memory-like semantics and specialised I/O channels for implementing multiprocessor systems.
+
+ARM and RISC-V designs focus only on the core, and finished devices generally implement I/O through relatively obscure and poorly-documented mechanisms (typically by having the memory bus serve all sorts of secondary purposes, which also necessitates having different memory maps and different compiler options on systems with different devices).
+
+## Futureproofing & Backwards Compatibility
+
+None of these systems has a high degree of backwards compatibility (although ARM has existed for a while programs generally need to be recompiled for newer processors, whereas RISC-V may be more stable but is newer and doesn't have much legacy software to draw on).
+
+This processor is designed to be rigorously futureproofed, with support for handling of invalid instructions in software being one of the first features which was added. This means you can prototype code for newer versions using older versions of the processor (by emulating any new instructions in software), and it also means we can drop support for outdated instructions in the future (again, just adding emulation in software for when they are needed). We can even add software-only instructions (this is actually how system calls are implemented). This functionality would be possible to implement on ARM or RISC-V as well, but the architectures aren't as clearly designed for it (e.g. this processor intentionally leaves encoding space free for adding new instructions, and the same applies to registers as well).
+
 ## Programming Model
 
 The programming model is comparable between all three; For example it would be possible to port Unix-like operating systems to any processor with comparable features.
