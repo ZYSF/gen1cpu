@@ -1939,8 +1939,8 @@ wire cpxenable = flags[4:4];
 assign critical = flags[5:5];
 wire mmuenable = flags[6:6];
 wire [7:0] maxreg = flags[15:8];
-wire overlordenable = flags[32:32];
-wire instrendswap = flags[33:33];
+wire overlordenable = flags[16:16];
+wire instrendswap = flags[17:17];
 
 wire isregalu;
 wire isimmalu;
