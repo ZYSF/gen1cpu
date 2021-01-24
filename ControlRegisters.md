@@ -30,6 +30,11 @@ This control register will reveal information about the current CPU state, such 
 
 The remainder of the lowest byte is reserved for flags, with the next byte holding the register protection setting (which defines the maximum addressable register). That is, if you set the third byte to e.g. `7`, then accessing register `8` would cause an exception rather than working correctly. However, the value of higher registers is preserved even while they are disabled. This can be set higher than the number of available registers (and defaults to `255`), in which case obviously registers are limited to those which are physically available (error handling works the same whether a register is disabled in software or doesn't exist in hardware).
 
+The byte above the register protection byte (starting from the 16th bit) is used for extended decoding modes:
+
+* Overlordenable (lowest bit) determines whether overlord mode is enabled (see documentation below for CTRL_OVERLORD_0 and friends)
+* Instrendswap (second-lowest bit) determines whether the instruction endian is switched (this can be useful for emulating some edge cases or different instruction sets)
+
 ## CTRL_MIRRORFLAGS (3)
 
 This is the "mirror" of the flags register, which gets swapped with the flags register during a mode switch.
@@ -121,3 +126,19 @@ The format of the lower bits of the `X` register is as follows:
 The lowest-matched slot is the one which is used (generally they shouldn't overlap, but behaviour should be deterministic when they do). Exceptions can be caused (if the MMU is enabled) either by an address matching a slot with invalid options (e.g. if it's only accessible for system-mode) or by an address not matching any slot.
 
 These exceptions are currently treated the same as regular bus/fetch exceptions. Since the MMU is enabled by the flags (and these are swapped on a mode-switch including regular exceptions) you can choose to implement your kernel with MMU disabled and your user code with MMU enabled, or just keep it enabled/disabled the whole time. In either case, any necessary switching should be both seamless and immediate (e.g. even if there is a cache layer, the MMU doesn't care).
+
+## CTRL_OVERLORD_0 (0x30), CTRL_OVERLORD_1 (0x31) .. CTRL_OVERLORD_7 (0x37)
+
+These are used for configuring overlord mode, which allows you to overload specific instructions. If an overloaded instruction is reached it will trigger an overlord exception instead of the usual action (whether or not a corresponding instruction is implemented by the processor).
+
+Each overlord register is (internally) 32 bits in size to ensure register-to-register compatibility between 32-bit and 64-bit implementations, making for 256 total bits. Each bit corresponds to a combination of major opcode and minor opcode (with the lower registers holding lower bits and higher registers holding higher bits).
+
+The overloading behaviour is triggered only when overlord mode is enabled (through the flags) and only for those instructions where the corresponding overlord bit is set.
+
+This mechanism can be useful for:
+
+ * Fixing an instructions which might be found to be buggy in hardware
+ * Adding additional security or debugging mechanisms to an instruction
+ * Testing customised instructions with software before implementing them in hardware
+ * Implementing any instructions which are deemed too complex to implement in hardware (i.e. to save chip space in smaller designs)
+ * Emulating alternative instruction sets
