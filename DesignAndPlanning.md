@@ -35,11 +35,11 @@ As for standardisation, however, a program can generally assume that there are a
 
 Nowadays, most systems access I/O devices through the memory bus instead of dedicated I/O ports. Why? Because "it's simpler" and "it works better with C" and "we can just use an MMU to multiplex everything".
 
-However, that may not be an appropriate option for high-security environments. If all your device access happens via the MMU, all your memory access happens via the MMU, and all your cryptography happens via the MMU, then any device with access to the MMU can potentially compromise all your devices, all your memory and all your cryptography. So although the current hardware design still uses the same wires to save space, the design of the instruction set allows more flexibility in situations where you want to isolate components as much as possible.
+However, that may not be an appropriate option for high-security environments. If all your device access happens via a complex MMU with cacheing and other features, all your memory access happens via the MMU, and all your cryptography happens via the MMU, then any device with access to the MMU can potentially compromise all your devices, all your memory and all your cryptography. So although the current hardware design still uses the same wires to save space, the design of the instruction set allows more flexibility in situations where you want to isolate components as much as possible.
 
 A separate I/O bus with a complete memory-like interface not only allows us to separate I/O access from "application memory", but it even allows us to forego the MMU entirely. System code can just store it's data via the I/O bus (which can also just be connected to memory) whereas user code can use the memory bus (which could be connected to totally separate memory) and instruction code can be stored in a separate ROM. You could even use one ROM for system code and normal memory for application code, since the system-mode flag is also part of the bus.
 
-I repeat: On this platform, you do not need a complex and error-prone MMU in order to efficiently isolate system and application code. An MMU might still be handy for heavy multitasking workflows, but it isn't strictly required to implement process isolation in multitasking environments.
+I repeat: On this platform, you do not need a complex and error-prone MMU in order to efficiently isolate system and application code. An MMU might still be handy for heavy multitasking workflows, but it isn't strictly required to implement process isolation in multitasking environments. The built-in Real-Time MMU is designed to fit common use-cases (including stack protection, Address Space Randomisation and other security-related concerns), however an external MMU can still be added by implementors if necessary.
 
 ## Future Plans
 
@@ -56,7 +56,7 @@ The current compromise is to use a 32-bit data and instruction bus (with 32-bit 
 * Obviously a better name ("gen1" is just CPU-speak for "first-generation design")
 * More advanced tools (work-in-progress...)
 * FPU (could be implemented by extending the control functions, but would likely take up a lot of FPGA space)
-* MMU (could possibly be implemented over the current bus though)
+* ~MMU (could possibly be implemented over the current bus though)~
 * Optimisation of existing instructions (most/all instructions take more cycles than should be strictly necessary)
 * Addition of optimised instructions (e.g. you can already read an 8-bit or 64-bit value from memory, but it will currently take more instructions than just reading a 32-bit value)
 * Test cases (I have done some ad-hoc testing, initially with Icarus Verilog and also on FPGA, but only the FPGA module is included as I mostly trashed the other one while learning Verilog)
