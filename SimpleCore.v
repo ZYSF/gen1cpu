@@ -284,7 +284,7 @@ reg [2:0]encoding = 0;
 wire [7:0]opcode = ins[31:24];
 
 /* The immediate output is usually just the sign-extended version of the lower half (16 bits) of the instruction, or
- * otherwise (for instructions starting with 0x2 or 0x3). It will produce output
+ * otherwise the lower 24 bits (for instructions starting with 0x2 or 0x3). It will produce output
  * regardless of whether the immediate is used by the instruction.
  */
 wire [47:0] ext16 = ins[15] ? 48'b111111111111111111111111111111111111111111111111 : 0;
@@ -298,7 +298,7 @@ assign regA = (encoding == `ENCODING_OPABC) ? ins[23:16] : ((encoding == `ENCODI
 assign regB = (encoding == `ENCODING_OPABC) ? ins[15:8] : ((encoding == `ENCODING_OPABI) ? ins[19:16] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[23:20] : 8'b0));
 assign regC = (encoding == `ENCODING_OPABC) ? ins[7:0] : (((encoding == `ENCODING_OPBCI) || (encoding == `ENCODING_OPXLU)) ? ins[19:16] : 8'b0);
 
-always @(opcode /*posedge decodeclk*/) begin
+always @(opcode or ins[4:0] /* bit hacky, avoids warnings... */ /*posedge decodeclk*/) begin
 	case (opcode)
 		`OP_ADDIMM: begin
 			encoding = `ENCODING_OPABI;
@@ -1664,7 +1664,7 @@ input [63:0]inB;
 input [63:0]inC;
 output reg aluvalid;
 
-always @(op) begin
+always @(op or inB or inC) begin
 	case (op)
 		`ALU_NOP: begin
 			outA = 0;
@@ -1932,7 +1932,7 @@ reg [63:0] mmuX7;
 reg [63:0] mmuY7;
 wire mmuerr;
 
-SimpleMMUx8(mmuenable, dsize, address, final_address, mmuerr, sysmode, readmem | readio, writemem | writeio, readins, readio | writeio,
+SimpleMMUx8 mmu(mmuenable, dsize, address, final_address, mmuerr, sysmode, readmem | readio, writemem | writeio, readins, readio | writeio,
 	mmuX0, mmuY0, mmuX1, mmuY1, mmuX2, mmuY2, mmuX3, mmuY3,
 	mmuX4, mmuY4, mmuX5, mmuY5, mmuX6, mmuY6, mmuX7, mmuY7);
 
@@ -2117,7 +2117,7 @@ always @(negedge clock) begin
 					if (ctrlread || ctrlwrite) begin
 						// The 'b' parameter was removed from ctrlin64/ctrlout64 to ensure we don't need to clear a register
 						// especially in order to load/save registers during context switching.
-						ctrln = (/*regOutB +*/ imm);
+						ctrln = /*regOutB +*/ imm[5:0];
 					end
 				end
 			end
@@ -2356,14 +2356,14 @@ wire [3:0] effaddress = address[5:2];
 
 initial
 	//clock,reset,address,dsize,din,dout,readins,readmem,readio,writemem,writeio,ready,sysmode,dblflt,busx,hwx,hwxa,stage
-		$monitor("%t: clock=xx reset=%b\naddress=%h (effective %d) dsize=%d din=%h dout=%h\nreadins=%b readmem=%b readio=%b writemem=%b writeio=%b\nready=%b sysmode=%b dblflt=%b busx=%b hwx=%b hwxa=%b\nstage=%d\nexcn=%d\ndecodeclk=%b ins=%h\nisvalid=%b issystem=%b\npc=%h npc=%h",
+		$monitor("%t: clock=xx reset=%b\naddress=%h (effective %d) dsize=%d din=%h dout=%h\nreadins=%b readmem=%b readio=%b writemem=%b writeio=%b\nready=%b sysmode=%b dblflt=%b busx=%b hwx=%b hwxa=%b\nstage=%d\nexcn=%d\nins=%h\nisvalid=%b issystem=%b\npc=%h npc=%h",
 			$time, /*clock,*/ reset,
 			address, effaddress, dsize, din, dout,
 			readins, readmem, readio, writemem, writeio,
 			ready, sysmode, dblflt, busx, hwx, hwxa,
 			stage,
 			excn,
-			decodeclk, ins,
+			ins,
 			isvalid, issystem,
 			pc, npc);
 
