@@ -18,7 +18,7 @@ A "proper test suite" would probably have to begin with simulated builds for pra
 * Reasonably lightweight 64-bit implementation (very small codebase and suitable for convenient FPGA boards and 32-bit memory interfaces)
 * Basic integer maths ("standard operations" include addition, subtraction, shifting, and/or/xor)
 * Basic control flow (comparisons, looping and function calls)
-* Exception handling (so you can recover from invalid/disabled instructions, bus errors, hardware interrupts and the like)
+* Exception handling (so you can recover from invalid/disabled/overloaded instructions, bus errors, hardware interrupts and the like)
 * System-mode/user-mode switching and ability to accurately save/restore program state
 * Real-Time Memory Management Unit with support for 8 or more flexible pages/segments mapped simultaneously
 * Register protection, so you can even restrict access to internal (as well as external) memory
