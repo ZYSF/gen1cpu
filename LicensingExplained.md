@@ -37,24 +37,20 @@ Some countries do not have a concept of public domain (or in some cases like Aus
 
 ## Additional Clarification
 
-These freedoms apply not only to the logical code ("software") itself but also to the design, structure and organisation of the system, in particular the instruction set. These freedoms cannot be revoked (anyone could produce a more-restricted version later, but you'd still be totally free to build on this version instead).
+These freedoms apply not only to the logical code ("software") itself but also to the design, structure, interfaces and organisation of the system, and in particular the instruction set. These freedoms cannot be revoked (anyone could produce a more-restricted version later, but you'd still be totally free to build on this version instead).
 
-If there is any further need for clarity: I do not believe these things to be distinct from Mathematical Formulae, and since they are stored digitally (as an arbitrary-length sequance of binary digits combined with a fixed-length size number) they are certainly equivalent to natural numbers (since the size could be considered the first 64 digits). Since the natural numbers (and anything equivalent) are countable, it is impossible for invention to uniquely apply to them (since they have been described already with Guisepe Peano and others providing clear prior art), and for this reason copyright cannot be applied to mathematical formulae unless it's produced by an idiot, marketed by an idiot, and (this is the most important part) sold to an idiot.
+If there is any further need for clarity: I do not believe these things to be distinct from Mathematical Formulae, and since they are stored digitally (as an arbitrary-length sequance of binary digits combined with a fixed-length size number) they are certainly equivalent to natural numbers (since the size could be considered the first 64 digits and the rest of the data would be the rest of the digits). Since the natural numbers (and anything equivalent) are countable, it is categorically impossible to uniquely invent them (since they have been formally described already with Guisepe Peano and others providing clear prior art), and for this reason copyright cannot be applied to mathematical formulae unless it's produced by an idiot, marketed by an idiot, and (this is the most important part) sold to an idiot.
 
-This might *not* apply to things like Trademarks. (Trademarks would allow me to e.g. have certified partners who are able to sell versions using special trademarks. In such cases the trademark would be more of a "seal of quality" than a part of the processor itself, in that a trademarked versus non-trademarked version would not necessarily operate any differently besides that extra level of quality control.)
+This might *not* apply to things like Trademarks. (Trademarks would allow me to e.g. have certified partners who are able to sell versions using special trademarks. In such cases the trademark would be more of a "seal of quality" than a part of the processor itself, in that a trademarked versus non-trademarked version would not necessarily operate any differently besides that extra level of quality control implied by the trademark. A trademark is an _identity_ as opposed to just data, so using a trademark wrong would be a lie whereas using data right or wrong is just maths either way.)
 
 ## A Clear Policy On Patents
 
 I do not, have not ever, and never will recognise the validity of software patents, hardware patents, or any other form of patents.
 
-Those things are *designed* to keep white men in charge of African infrastructure, and as a matter of Egyptian pride I will shake fear, distress and regret into the hearts and bones of their supporters. Great chaos will befall those who ignore my warnings.
+That being said, I have taken some care to try to avoid incorporating anything which might already be patented into the design:
 
-If anyone tries to sue myself, my business, my associates, or any of my clients over a matter of patents relating to this processor or associated technologies, I vowe to destroy them entirely; Any lawyers of fighting age who stand against me will be stripped of their arms, their spouses will remarry, and their children will be raised as Hellenes.
+* The instruction set is entirely custom-designed, using the most obvious encodings and hexadecimal puns, just in case any more-clever/more-efficient ways of encoding instructions have been patented
+* Built-in devices like the Timer and Real-Time Memory Management Unit are designed in the most straightforward possible ways and are free from any non-obvious optimisations
+* I've taken care not to specifically add any instructions or features aimed at being directly equivalent to those in other processors (for example the MMU doesn't work anything like an x86 one, there is no special zero register like on some RISC processors, the GPIO system doesn't have built-in masking like on Propeller)
 
-## Further Justifications
-
-Should anyone need further justification of why it is a sane decision to release source code with completely free licensing, consider this:
-
- * Would the Bible have been a commercial success if it was copyrighted?
- * If you made a cryptography algorithm and told nobody about it, how would you know it wasn't weak as piss?
- * Who would you consider a better source of advice for designing security products: Bill Gates, or Alexander of Macedon?
+I accept that there may initially be some patented technologies involved in the manufacturing process, and it may be necessary to include components released under different terms in order to sell useful hardware development kits. These issues can be eliminated in the long term but are not a major concern in the short term.
