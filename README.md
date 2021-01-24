@@ -37,16 +37,23 @@ A "proper test suite" would probably have to begin with simulated builds for pra
 
 ## Documentation
 
+### Technical Specifications
+
 * [Instruction Set](InstructionSet.md) documents the semantics and encoding of each of the standard instructions.
 * [Control Registers](ControlRegisters.md) documents the meanings, encodings and indices of the control registers.
 * [Modes & Exceptions](ModesAndExceptions.md) documents the user-mode/system-mode switching and the meanings of the exception codes.
 * [Startup & Reset State](StartupAndResetState.md) documents the startup/reset sequence and what state to expect the core to be in at initialisation.
 * [Addressing Modes](AddressingModes.md) should help to clarify the role of the MMU and the ways in which instructions, memory locations, I/O and control registers are addressed
+
+### Design & Business Documents
+
 * [Design & Planning](DesignAndPlanning.md) should answer questions like "why not just use RISC-V?" and "why does it support 256 registers?"
 * [Differences to ARM & RISC-V](DifferencesToARMAndRISCV.md) should summarise how this fits in with existing ARM & RISC-V infrastructure
+* [Licensing Explained](LicensingExplained.md) should clarify the intention and specifics of the (Public Domain!) license
 
 ## Tools
 
 * [ZAsm](https://github.com/ZYSF/ZAsm/) a simple but flexible assembler which supports the new instruction set.
+    - NOTE: This may be slightly out-of-sync with latest processor features.
 * [ZLink](https://github.com/ZYSF/ZLink/) a linker which can produce flat binaries from the assembled code.
 * A C compiler is also in development.
