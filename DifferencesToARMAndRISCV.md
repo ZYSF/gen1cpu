@@ -48,6 +48,10 @@ None of these systems has a high degree of backwards compatibility (although ARM
 
 This processor is designed to be rigorously futureproofed, with support for handling of invalid instructions in software being one of the first features which was added. This means you can prototype code for newer versions using older versions of the processor (by emulating any new instructions in software), and it also means we can drop support for outdated instructions in the future (again, just adding emulation in software for when they are needed). We can even add software-only instructions (this is actually how system calls are implemented), and can even overload instructions which are already implemented in hardware (which is important for fixing bugs if they arise in hardware). This functionality would be possible to implement on ARM or RISC-V as well, but the architectures aren't as clearly designed for it (e.g. this processor intentionally leaves encoding space free for adding new instructions, and the same applies to registers as well).
 
+## Features & Extensions
+
+Generally speaking, ARM & RISC-V both have more optional extensions defined whereas this processor aims to have a more practical set of core features (for example, a timer device and MMU are built-in) but is currently missing some obvious extras like a Floating Point Unit (FPU).
+
 ## Programming Model
 
 The programming model is comparable between all three; For example it would be possible to port Unix-like operating systems to any processor with comparable features.
