@@ -43,11 +43,13 @@ If there is any further need for clarity: I do not believe these things to be di
 
 This might *not* apply to things like Trademarks. (Trademarks would allow me to e.g. have certified partners who are able to sell versions using special trademarks. In such cases the trademark would be more of a "seal of quality" than a part of the processor itself, in that a trademarked versus non-trademarked version would not necessarily operate any differently besides that extra level of quality control.)
 
-## Patents
+## A Clear Policy On Patents
 
 I do not, have not ever, and never will recognise the validity of software patents, hardware patents, or any other form of patents.
 
-If anyone tries to sue myself, my business, my associates, or any of my clients over a matter of patents relating to this processor, I vowe to destroy them entirely; Any lawyers of fighting age who stand against me will be stripped of their arms, their wives will remarry, and their children will be raised as Hellenes.
+Those things are *designed* to keep white men in charge of African infrastructure, and as a matter of Egyptian pride I will shake fear, distress and regret into the hearts and bones of their supporters. Great chaos will befall those who ignore my warnings.
+
+If anyone tries to sue myself, my business, my associates, or any of my clients over a matter of patents relating to this processor or associated technologies, I vowe to destroy them entirely; Any lawyers of fighting age who stand against me will be stripped of their arms, their spouses will remarry, and their children will be raised as Hellenes.
 
 ## Further Justifications
 
