@@ -47,8 +47,6 @@ This might *not* include things like Trademarks. (This would allow me to e.g. ha
 
 Should anyone need further justification of why it is a sane decision to release source code with completely free licensing, consider this:
 
- * Would you trust a home security system if only one person at one company knew how it worked?
- * If copyright is so great, why did Alexander of Macedon tell us to share information?
  * Would the Bible have been a commercial success if it was copyrighted?
- * If Bill Gates told you to do something, would you think it was in your own best interests or his?
  * If you made a cryptography algorithm and told nobody about it, how would you know it wasn't weak as piss?
+ * Who would you consider a better source of advice for designing security products: Bill Gates, or Alexander of Macedon?
