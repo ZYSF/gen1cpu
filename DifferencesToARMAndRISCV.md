@@ -22,17 +22,19 @@ Optimised implementations of ARM and RISC-V are of course more mature, so if eff
 
 This processor is most comparable to RISC-V in terms of licensing, and completely in opposition to ARM's licensing model. That is, if you choose ARM, you're stuck with a sinking ship and will eventually need to buy a new one. If you choose RISC-V (or this processor design) then you can always hire someone to fix any flaws you find in it.
 
-Compared to RISC-V the licensing of this processor design is slightly less restrictive, but only marginally so (I reserve no copyright whatsoever, whereas RISC-V might require a third-party copyright notice). In both cases, third-party vendors may choose to offer commercialised versions of the design but are generally unable to force anyone else to abandon their competing version (whereas with ARM, commercial rights belong exclusively to their partners).
+Compared to RISC-V the licensing of this processor design might be seen as slightly less restrictive, but only marginally so (I reserve no copyright whatsoever, whereas RISC-V might require a third-party copyright notice at least if you include their specific documentation). In both cases, third-party vendors may choose to offer commercialised versions of the design but are generally unable to force anyone else to abandon their competing version (whereas with ARM, commercial rights belong exclusively to their partners).
+
+As for commercial membership, I may eventually adopt a similar approach to RISC-V (and/or integrate with their existing organisation) but would ideally opt for less of a corporate-feeling pricing strategy if I did it my own way.
 
 ## Implementation Quality
 
-The implementation quality of this processor is far lower than that of ARM or RISC-V (as should be expected since those have been in development for a lot longer).
+The implementation quality of this processor is far lower than that of the most popular ARM or RISC-V implementations (as should be expected since those have been in development for a lot longer).
 
 The quality will be comparable once sufficient testing has been performed (I wouldn't recommend using it in any critical [life-or-death] devices at this point, but after sufficient testing it should be a prime candidate for such devices).
 
 ## Documentation/Specification Quality
 
-Unless anyone can explain clearly how mode switching, exception handling and memory protection work in ARM or RISC-V without using a whole bunch of model numbers and other jargon, I'm going to say mine's significantly better.
+Unless anyone can explain clearly how mode switching, exception handling, memory protection and instruction overloading work in ARM or RISC-V without using a whole bunch of model numbers or similar jargon, I'm going to say mine's significantly better.
 
 ## Peripherals & I/O
 
@@ -44,7 +46,7 @@ ARM and RISC-V designs focus only on the core, and finished devices generally im
 
 None of these systems has a high degree of backwards compatibility (although ARM has existed for a while programs generally need to be recompiled for newer processors, whereas RISC-V may be more stable but is newer and doesn't have much legacy software to draw on).
 
-This processor is designed to be rigorously futureproofed, with support for handling of invalid instructions in software being one of the first features which was added. This means you can prototype code for newer versions using older versions of the processor (by emulating any new instructions in software), and it also means we can drop support for outdated instructions in the future (again, just adding emulation in software for when they are needed). We can even add software-only instructions (this is actually how system calls are implemented). This functionality would be possible to implement on ARM or RISC-V as well, but the architectures aren't as clearly designed for it (e.g. this processor intentionally leaves encoding space free for adding new instructions, and the same applies to registers as well).
+This processor is designed to be rigorously futureproofed, with support for handling of invalid instructions in software being one of the first features which was added. This means you can prototype code for newer versions using older versions of the processor (by emulating any new instructions in software), and it also means we can drop support for outdated instructions in the future (again, just adding emulation in software for when they are needed). We can even add software-only instructions (this is actually how system calls are implemented), and can even overload instructions which are already implemented in hardware (which is important for fixing bugs if they arise in hardware). This functionality would be possible to implement on ARM or RISC-V as well, but the architectures aren't as clearly designed for it (e.g. this processor intentionally leaves encoding space free for adding new instructions, and the same applies to registers as well).
 
 ## Programming Model
 
