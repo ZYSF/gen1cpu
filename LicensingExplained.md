@@ -6,7 +6,7 @@ The [Unlicense](https://unlicense.org/) is a convenient way of ensuring that cod
 
 ## What Is Meant By Public Domain?
 
-Some countries do not have a concept of public domain (or in some cases like Australia the government don't understand what the word means regardless of the concept), but for everyone else it means "anyone is equally free to use, improve upon and redistribute this".
+Some countries do not have a concept of public domain (or in some cases like Australia the government don't understand what the word means regardless of the concept), but for everyone else it means "anyone is equally free to use, improve upon and redistribute this". It's only due to countries like Australia which have fuck all in the way of sensible legal structure that it becomes necessary to make these terms so damn explicit.
 
 ## The Text Of The License
 
@@ -37,11 +37,11 @@ Some countries do not have a concept of public domain (or in some cases like Aus
 
 ## Additional Clarification
 
-These freedoms apply not only to the logical code ("software") itself but also to the design, structure and organisation of the system, in particular the instruction set.
+These freedoms apply not only to the logical code ("software") itself but also to the design, structure and organisation of the system, in particular the instruction set. These freedoms cannot be revoked (anyone could produce a more-restricted version later, but you'd still be totally free to build on this version instead).
 
-If there is any further need for clarity, I do not believe these things to be distinct from Mathematical Formulae, and since they are stored digitally they are certainly equivalent to natural numbers. Since the natural numbers (and anything equivalent) are countable, it is impossible for invention to uniquely apply to them, and for this reason copyright cannot be applied to mathematical formulae unless it's produced by an idiot.
+If there is any further need for clarity: I do not believe these things to be distinct from Mathematical Formulae, and since they are stored digitally (as an arbitrary-length sequance of binary digits combined with a fixed-length size number) they are certainly equivalent to natural numbers (since the size could be considered the first 64 digits). Since the natural numbers (and anything equivalent) are countable, it is impossible for invention to uniquely apply to them (since they have been described already with Guisepe Peano and others providing clear prior art), and for this reason copyright cannot be applied to mathematical formulae unless it's produced by an idiot, marketed by an idiot, and (this is the most important part) sold to an idiot.
 
-This might *not* include things like Trademarks. (This would allow me to e.g. have certified partners who are able to sell versions using special trademarks. In such cases the trademark would be more of a "seal of quality" than a part of the processor itself.)
+This might *not* apply to things like Trademarks. (Trademarks would allow me to e.g. have certified partners who are able to sell versions using special trademarks. In such cases the trademark would be more of a "seal of quality" than a part of the processor itself, in that a trademarked versus non-trademarked version would not necessarily operate any differently besides that extra level of quality control.)
 
 ## Further Justifications
 
