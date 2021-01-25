@@ -38,7 +38,9 @@ Generally speaking, you should be able to implement a complete RISC-V compatible
 So this mode can be made very general but it's purpose is mostly to:
 
 1. Make it easier to bootstrap systems (you just need some assembler code to implement any missing instructions and then a RISC-V compiler toolchain)
-2. Make it possible to run user-mode programs compiled for RISC-V
+2. Make it possible to run user-mode programs compiled for RISC-V (i.e. for running Linux software in customised environments)
+3. Make it easier for software developers to begin to target the system (i.e. if your software already supports RISC-V, you're already half-way there)
+4. Allow additional options for compilers and so on (e.g. so if I develop a specialised compiler for the native instruction set, you can still use mainline GCC instead if you prefer)
 
 In particular, this mode doesn't (at least currently) make any attempt to emulate RISC-V hypervisor features or anything of that nature; It's just for emulating the instruction set itself, and it will generally still require some "native" instructions to access advanced functionality (even if all the common instructions are added to hardware in the future).
 
@@ -46,6 +48,6 @@ In particular, this mode doesn't (at least currently) make any attempt to emulat
 
 TODO (Not yet implemented).
 
-The plan is essentially to add those instructions which are most critical for running C programs, while leaving more-specialised instructions (e.g. dealing with mode switching and so on) to be implemented in hardware.
+The plan is essentially to add those instructions which are most critical for running C programs, while leaving more-specialised instructions (e.g. dealing with mode switching and so on) to be implemented in software.
 
 In other words, the result would be similar to a microcode-based implementation of RISC-V, except that the microcode is just normal operating system code (if it doesn't need to do anything that special, it could potentially even be implemented using RISC-V instructions).
