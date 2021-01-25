@@ -6,6 +6,11 @@ One issue with processor design is tooling; Imagine how much of a pain in the ar
 
 For this reason, I've started adding a RISC Emulation Mode designed to give partial hardware optimisation for running RISC-V binaries (while allowing the exact features to be determined by software extensions).
 
+This functionality is still called "RISC Emulation Mode" instead of "RISC-V Emulation Mode" for a couple of reasons:
+
+1. Just to make sure nobody thinks this is a complete RISC-V implementation by itself
+2. It might be useful (or extensible) for supporting other RISC-like instruction sets in the future, although current features are aimed at RISC-V
+
 ## Enabling RISC Emulation Mode
 
 This can be done by setting a bit in the flags control register. You might want to enable "Overlord Mode" as well since this will allow you control over exactly which instructions are allowed (this means you can disable or reimplement instructions even if they are already defined in hardware).
