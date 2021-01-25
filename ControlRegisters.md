@@ -34,6 +34,7 @@ The byte above the register protection byte (starting from the 16th bit) is used
 
 * Overlordenable (lowest bit) determines whether overlord mode is enabled (see documentation below for CTRL_OVERLORD_0 and friends)
 * Instrendswap (second-lowest bit) determines whether the instruction endian is switched (this can be useful for emulating some edge cases or different instruction sets)
+* Remenable (third-lowest bit) determines whether RISC Emulation Mode is enabled
 
 ## CTRL_MIRRORFLAGS (3)
 
