@@ -45,6 +45,7 @@ A "proper test suite" would probably have to begin with simulated builds for pra
 * [Modes & Exceptions](ModesAndExceptions.md) documents the user-mode/system-mode switching and the meanings of the exception codes.
 * [Startup & Reset State](StartupAndResetState.md) documents the startup/reset sequence and what state to expect the core to be in at initialisation.
 * [Addressing Modes](AddressingModes.md) should help to clarify the role of the MMU and the ways in which instructions, memory locations, I/O and control registers are addressed
+* [RISC Emulation Mode](RISCEmulationMode.md) should explain how the RISC Emulation Mode works and what level of RISC-V compatibility to expect
 
 ### Design & Business Documents
 
