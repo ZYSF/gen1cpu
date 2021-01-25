@@ -14,7 +14,7 @@ A "proper test suite" would probably have to begin with simulated builds for pra
 
 ## Features
 
-* Custom [instruction set](InstructionSet.md) (no copying of proprietary encodings)
+* Custom [instruction set](InstructionSet.md) (no copying of proprietary encodings) with a "RISC Emulation Mode" designed as a stepping stone for using RISC-V tools
 * Reasonably lightweight 64-bit implementation (very small codebase and suitable for convenient FPGA boards and 32-bit memory interfaces)
 * Basic integer maths ("standard operations" include addition, subtraction, shifting, and/or/xor)
 * Basic control flow (comparisons, looping and function calls)
