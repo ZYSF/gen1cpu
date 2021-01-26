@@ -3586,7 +3586,7 @@ always @(negedge clock) begin
 					nxaddr = xaddr;
 					nmirrorxaddr = mirrorxaddr;
 				end else if (bif && (aluOutA != 0)) begin
-					npc = {pc[63:18],imm[15:0],2'b00};
+					npc = remenable ? (pc + imm) : {pc[63:18],imm[15:0],2'b00};
 					/* In normal operation, flags etc. stay the same. But they are swapped
 					 * instead if there's an exception or similar mode-switch, so the new flags
 					 * etc. are re-asserted here but only finally applied at the start of the
