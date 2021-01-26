@@ -57,6 +57,7 @@ Currently implemented (but mostly *untested*) instructions include:
 * `xori`
 * `ori`
 * `andi`
+* `jalr`
 
 Unless listed specifically this does *not* include specialised variants (e.g. such as those dealing with half-register values).
 
@@ -67,6 +68,8 @@ Note that some pseudo-operations with their own mnemonics are also encoded as th
 * `neg` (encoded as a `sub`)
 * `not` (encoded as an `xori`)
 * `zext.b` (encoded as an `andi`)
+* `ret` (encoded as a `jalr`)
+* `jr` (encoded as a `jalr`)
 
 ## Future Plans
 
