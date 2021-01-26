@@ -1766,15 +1766,16 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 		end
-		`OP_BE: begin
-			encoding = `ENCODING_OPABC;
+		*/
+		`OP_RV_JALR: begin
+			encoding = `ENCODING_RV_I;
 			isvalid = 1;
 			blink = 1;
 			regwrite = 1;
 			bto = 1;
 			
 			isregalu = 0;
-			isimmalu = 0;
+			isimmalu = 1; // We pick this up at the jump
 			//isvalid = 0;
 			issystem = 0;
 			//regwrite = 0;
@@ -1797,6 +1798,7 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 		end
+		/*
 		`OP_BEFORE: begin
 			encoding = `ENCODING_OPABC; // Note, destination register is ignored in a plain before
 			isvalid = 1;
@@ -3449,7 +3451,7 @@ always @(negedge clock) begin
 				 * (similar to flags and nflags etc.).
 				 */
 				if (bto) begin
-					npc = regOutC;
+					npc = isimmalu ? (regOutC + imm) : regOutC;
 					/* In normal operation, flags etc. stay the same. But they are swapped
 					 * instead if there's an exception or similar mode-switch, so the new flags
 					 * etc. are re-asserted here but only finally applied at the start of the
