@@ -46,8 +46,24 @@ In particular, this mode doesn't (at least currently) make any attempt to emulat
 
 ## Hardware-Accelerated Emulation
 
-TODO (Not yet implemented).
+Currently implemented (but mostly *untested*) instructions include:
 
-The plan is essentially to add those instructions which are most critical for running C programs, while leaving more-specialised instructions (e.g. dealing with mode switching and so on) to be implemented in software.
+* `add`
+* `sub`
+* `addi`
+
+Unless listed specifically this does *not* include specialised variants (e.g. such as those dealing with half-register values).
+
+Note that some pseudo-operations with their own mnemonics are also encoded as the above instructions, this includes:
+
+* `nop` (encoded as an `addi`)
+* `mv` (encoded as an `addi`)
+* `neg` (encoded as a `sub`)
+
+## Future Plans
+
+The plan is essentially to implement in hardware the instructions which are most critical for running C programs, while leaving more-specialised instructions (e.g. dealing with mode switching and so on) to be implemented in software.
 
 In other words, the result would be similar to a microcode-based implementation of RISC-V, except that the microcode is just normal operating system code (if it doesn't need to do anything that special, it could potentially even be implemented using RISC-V instructions).
+
+In the future, complete versions of the RISC-V instruction set may be incorporated into the design, but would likely be optional features (with the bare minimum just being the emulation mode with no instructions implemented).
