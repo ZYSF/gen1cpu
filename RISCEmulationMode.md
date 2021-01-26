@@ -58,6 +58,17 @@ Currently implemented (but mostly *untested*) instructions include:
 * `ori`
 * `andi`
 * `jalr`
+* `lb` (requires additional bus support)
+* `ls` (requires additional bus support)
+* `lw`
+* `ld` (requires additional bus support)
+* `lbu` (requires additional bus support)
+* `lsu` (requires additional bus support)
+* `lwu`
+* `sb` (requires additional bus support)
+* `ss` (requires additional bus support)
+* `sw`
+* `sd` (requires additional bus support)
 
 Unless listed specifically this does *not* include specialised variants (e.g. such as those dealing with half-register values).
 
