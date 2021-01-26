@@ -86,7 +86,15 @@
 `define ENCODING_OPBCI		3'b001		// 0xopbciiii NOTE: Similar to OPABI encoding except two input registers
 `define ENCODING_OPL24		3'b100		// 0xoaiiiiii NOTE: Target register is suboperation, 24 bit immediate. (An optimised encoding for loading constants.)
 `define ENCODING_OPXLU		3'b101		// 0xoabciiii NOTE: This is for extended a=b+c type operations (with up to 65536 operators)
- 
+
+// These are only needed for RISC-V emulation
+`define ENCODING_RV_R		3'b000
+`define ENCODING_RV_I		3'b001
+`define ENCODING_RV_S		3'b010
+`define ENCODING_RV_U		3'b011
+`define ENCODING_RV_B		3'b100	// NOTE: The B and J variants are based on the others but with special handling of immediates
+`define ENCODING_RV_J		3'b101
+
 `define OP_SYSCALL		8'h00	// 0x00??????: invalid instruction, but reserved for encoding system calls
 `define OP_ADDIMM			8'h11	// 0x11abiiii: a=b+i; // NOTE: Can only access lower 16 registers due to encoding
 `define OP_LDSL16IMM		8'h1D	// 0x11abiiii: a=(b<<16)|(c&0xFF);
@@ -158,6 +166,19 @@
 // Earlier design with combined branch/if instruction (decided to combine system-return function with branch instead)
 //`define OP_BRIF			8'hBF	// 0xBFaabbcc: if(b != 0){a = pc + 4; nflags = mirrorflags; nmirrorflags = flags; npc = c;}
 
+// These are only used for RISC-V emulation (note, these define the major opcodes, the complete opcode usually has separate sub-operation)
+`define OP_RV_OP			7'b0110011
+`define OP_RV_OP_IMM		7'b0010011
+`define OP_RV_BRANCH		7'b1100011
+`define OP_RV_LUI			7'b0110111
+`define OP_RV_AUIPC		7'b0010011
+`define OP_RV_JAL			7'b1101111
+`define OP_RV_JALR		7'b1100111
+`define OP_RV_LOAD		7'b0000011
+`define OP_RV_STORE		7'b0100011
+`define OP_RV_MISC_MEM	7'b0001111
+
+
 `define ALU_NOP			5'h00
 `define ALU_ADD			5'h01
 `define ALU_SUB			5'h02
@@ -175,6 +196,16 @@
 `define ALU_EQUALS		5'h0E
 `define ALU_LOADC			5'h10
 `define ALU_DIVS			5'h11
+
+// These are only used for RISC-V emulation (they get converted to regular ALU codes internally):
+`define ALU_RV_ADD		3'b000
+`define ALU_RV_SLL		3'b001
+`define ALU_RV_SLT		3'b010
+`define ALU_RV_SLTU		3'b011
+`define ALU_RV_XOR		3'b100
+`define ALU_RV_SRL		3'b101
+`define ALU_RV_OR			3'b110
+`define ALU_RV_AND		3'b111
 
 `define CTRL_CPUID			6'h0
 `define CTRL_EXCN				6'h1
@@ -1264,8 +1295,1044 @@ end
 
 endmodule
 
+/* This is basically a copy of the SimpleDecoder except it decodes some RISC-V instructions instead. */
+module SimpleRVDecoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif);
+//input decodeclk;
+input [31:0] ins;
+output reg isregalu;
+output reg isimmalu;
+output reg isvalid;
+output reg issystem;
+output wire [7:0]regA;
+output wire [7:0]regB;
+output wire [7:0]regC;
+output reg regwrite;
+output reg [4:0]aluop;
+output [63:0]imm;
+output reg [1:0]valsize;
+output reg ctrlread;
+output reg ctrlwrite;
+output reg dataread;
+output reg datawrite;
+output reg extnread;
+output reg extnwrite;
+output reg highA;
+output reg highB;
+output reg highC;
+output reg getpc;
+output reg setpc;
+output reg blink;
+output reg bto;
+output reg bswitch;
+output reg bif;
+
+reg [2:0]encoding = 0;
+
+wire [6:0]opcode = ins[6:0];
+
+/* Decoding of registers and immediates is similar to the native instruction format, immediates slightly more
+ * complicated due to weird encodings but registers slightly less complicated due to uniform positioning
+ * (although we can only encode up to 32 registers in RISC-V instructions).
+ */
+wire [53:0] ext12 = ins[31] ? 52'b1111111111111111111111111111111111111111111111111111 : 52'b0;
+wire [52:0] ext13 = ins[31] ? 51'b111111111111111111111111111111111111111111111111111 : 51'b0;
+wire [63:0] imm12 = {ext12, (encoding == `ENCODING_RV_S) ? {ins[31:25], ins[11:7]} : ins[31:20]};
+wire [43:0] ext20 = ins[31] ? 44'b11111111111111111111111111111111111111111111 : 44'b0;
+wire [63:0] imm20 = {ext20, ins[31:12]};
+wire [31:0] ext32 = ins[31] ? 32'hFFFFFFFF : 32'b0;
+//wire [11:0] ext12 = ins[31] ? 12'b111111111111 : 12'b0;
+
+wire [63:0] immi = {ext12, ins[31:20]};
+wire [63:0] imms = {ext12, ins[31:25], ins[11:7]};
+wire [63:0] immb = {ext13, ins[7:7], ins[31:25], ins[11:8], 1'b0};
+wire [63:0] immu = {ext32, ins[31:12], 12'b0};
+wire [63:0] immj = {ext20, ins[19:12], ins[20:20], ins[30:21], 1'b0}; // Seriously wtf.
+
+assign imm = (encoding == `ENCODING_RV_I) ? immi
+	: ((encoding == `ENCODING_RV_S) ? imms
+	: ((encoding == `ENCODING_RV_B) ? immb
+	: ((encoding == `ENCODING_RV_U) ? immu
+	: ((encoding == `ENCODING_RV_J) ? immj
+	: 64'b0))));
+assign regA = (encoding == `ENCODING_RV_R || encoding == `ENCODING_RV_I || encoding == `ENCODING_RV_U || encoding == `ENCODING_RV_J) ? {3'b000, ins[11:7]} : 8'b0;
+assign regB = (encoding == `ENCODING_RV_R || encoding == `ENCODING_RV_I || encoding == `ENCODING_RV_S || encoding == `ENCODING_RV_B) ? {3'b000, ins[19:15]} : 8'b0;
+assign regC = (encoding == `ENCODING_RV_R || encoding == `ENCODING_RV_S || encoding == `ENCODING_RV_B) ? {3'b000, ins[24:20]} : 8'b0;
+
+/* The funct3 and funct7 fields are only used for some opcodes as a suboperation or similar.
+ * Otherwise these bits are used for other fields such as registers or immediates.
+ */
+wire [2:0] funct3 = ins[14:12];
+wire [6:0] funct7 = ins[31:25];
+
+wire [4:0] alufunctshort = (funct3 == `ALU_RV_ADD) ? `ALU_ADD : 5'b0;
+wire [4:0] alufunctlong = (funct3 == `ALU_RV_ADD) ? (funct7 == 7'b0100000 ? `ALU_SUB : `ALU_ADD) : 5'b0;
+wire alufunctshortvalid = (funct3 == `ALU_RV_ADD) ? 1'b1 : 1'b0;
+wire alufunctlongvalid = alufunctshortvalid && (funct7 == 7'b0100000 || funct7 == 7'b0);
+
+always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunctshortvalid or alufunctlongvalid) begin
+	case (opcode)
+	/*`define OP_RV_OP			7'b0110011
+`define OP_RV_OP_IMM		7'b0010011
+`define OP_RV_BRANCH		7'b1100011
+`define OP_RV_LUI			7'b0110111
+`define OP_RV_AUIPC		7'b0010011
+`define OP_RV_JAL			7'b1101111
+`define OP_RV_JALR		7'b1100111
+`define OP_RV_LOAD		7'b0000011
+`define OP_RV_STORE		7'b0100011
+`define OP_RV_MISC_MEM	7'b0001111*/
+
+		`OP_RV_OP_IMM: begin
+			encoding = `ENCODING_RV_I;
+			isimmalu = 1;
+			isvalid = alufunctshortvalid;
+			regwrite = 1;
+			aluop = alufunctshort; //[7:0] = {4'b0000:opcode[3:0]};
+			
+			isregalu = 0;
+			//isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		/*
+		`OP_LDSL16IMM: begin
+			encoding = `ENCODING_OPABI;
+			isimmalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_LDSL16; //[7:0] = {4'b0000:opcode[3:0]};
+			
+			isregalu = 0;
+			//isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		*/
+		`OP_RV_OP: begin
+			encoding = `ENCODING_RV_R;
+			isregalu = 1;
+			isvalid = alufunctlongvalid;
+			regwrite = 1;
+			aluop = alufunctlong; //[7:0] = {4'b0000:opcode[3:0]};
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		/*
+		`OP_SUB: begin
+			encoding = `ENCODING_OPABC;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_SUB; //[7:0] = {4'b0000:opcode[3:0]};
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_AND: begin
+			encoding = `ENCODING_OPABC;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_AND;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_OR: begin
+			encoding = `ENCODING_OPABC;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_OR;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_XOR: begin
+			encoding = `ENCODING_OPABC;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_XOR;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_SHL: begin
+			encoding = `ENCODING_OPABC;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_SHL;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_SHRZ: begin
+			encoding = `ENCODING_OPABC;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_SHRZ;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_SHRS: begin
+			encoding = `ENCODING_OPABC;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_SHRS;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_BLINK: begin
+			encoding = `ENCODING_OPABC;
+			isvalid = 1;
+			blink = 1;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			//blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_BTO: begin
+			encoding = `ENCODING_OPABC; // Note, destination register is ignored in a plain bto
+			isvalid = 1;
+			bto = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			//bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_BE: begin
+			encoding = `ENCODING_OPABC;
+			isvalid = 1;
+			blink = 1;
+			regwrite = 1;
+			bto = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			//blink = 0;
+			//bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_BEFORE: begin
+			encoding = `ENCODING_OPABC; // Note, destination register is ignored in a plain before
+			isvalid = 1;
+			issystem = 1;
+			bswitch = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			//bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end*/
+		/*
+		`OP_BRIF: begin
+			isvalid = 1;
+			getpc = 1;
+			setpc = 1;
+			breg = 1;
+			bif = 1;
+		end*/
+		/*
+		`OP_CTRLIN64: begin
+			encoding = `ENCODING_OPABI;
+			isvalid = 1;
+			issystem = 1;
+			ctrlread = 1;
+			valsize = 3;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			//ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_CTRLOUT64: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			issystem = 1;
+			ctrlwrite = 1;
+			valsize = 3;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			//ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_READ32: begin
+			encoding = `ENCODING_OPABI;
+			isvalid = 1;
+			dataread = 1;
+			valsize = 2;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			//dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_WRITE32: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			datawrite = 1;
+			valsize = 2;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			//datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_IN32: begin
+			encoding = `ENCODING_OPABI;
+			isvalid = 1;
+			issystem = 1;
+			extnread = 1;
+			valsize = 2;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			//extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_OUT32: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			issystem = 1;
+			extnwrite = 1;
+			valsize = 2;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			//extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_READ32H: begin
+			encoding = `ENCODING_OPABI;
+			isvalid = 1;
+			dataread = 1;
+			valsize = 2;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			//dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 1;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_WRITE32H: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			datawrite = 1;
+			valsize = 2;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			//datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 1;
+		end
+		`OP_IN32H: begin
+			encoding = `ENCODING_OPABI;
+			isvalid = 1;
+			issystem = 1;
+			extnread = 1;
+			valsize = 2;
+			regwrite = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			//extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 1;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_OUT32H: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			issystem = 1;
+			extnwrite = 1;
+			valsize = 2;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			//issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			//valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			//extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 1;
+		end
+		`OP_IFABOVE: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			isregalu = 1;
+			bif = 1;
+			aluop = 4'hA;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			//bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_IFBELOWS: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			isregalu = 1;
+			bif = 1;
+			aluop = 4'hB;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			//bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		`OP_IFEQUALS: begin
+			encoding = `ENCODING_OPBCI;
+			isvalid = 1;
+			isregalu = 1;
+			bif = 1;
+			aluop = 4'hE;
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			//bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		// We could probably just match the top four bits here, but it might help to be
+		// clear about each sub-operation:
+		`OP_LD24_0, `OP_LD24_1, `OP_LD24_2, `OP_LD24_3,
+		`OP_LD24_4, `OP_LD24_5, `OP_LD24_6, `OP_LD24_7,
+		`OP_LD24_8, `OP_LD24_9, `OP_LD24_A, `OP_LD24_B,
+		`OP_LD24_C, `OP_LD24_D, `OP_LD24_E, `OP_LD24_F: begin
+			encoding = `ENCODING_OPL24;
+			isimmalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = `ALU_LOADC; //[7:0] = {4'b0000:opcode[3:0]};
+			
+			isregalu = 0;
+			//isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		// We could probably just match the top four bits here, but it might help to be
+		// clear about each sub-operation:
+		`OP_XLU_0, `OP_XLU_1, `OP_XLU_2, `OP_XLU_3,
+		`OP_XLU_4, `OP_XLU_5, `OP_XLU_6, `OP_XLU_7,
+		`OP_XLU_8, `OP_XLU_9, `OP_XLU_A, `OP_XLU_B,
+		`OP_XLU_C, `OP_XLU_D, `OP_XLU_E, `OP_XLU_F: begin
+			encoding = `ENCODING_OPXLU;
+			isregalu = 1;
+			isvalid = 1;
+			regwrite = 1;
+			aluop = ins[4:0];
+			
+			//isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			//aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+		*/
+		default: begin
+			isregalu = 0;
+			isimmalu = 0;
+			isvalid = 0;
+			issystem = 0;
+			regwrite = 0;
+			aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			blink = 0;
+			bto = 0;
+			bif = 0;
+			encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+		end
+	endcase
+end
+
+endmodule
+
 /* This is designed to fit straight over the top of SimpleDecoder and handle some edge cases like overloading and endian-swapping. */
-module SimpleOverlordDecoder(/*decodeclk, */rawins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, enableoverlord, enablerem, swapinstrend, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
+module SimpleOverlordDecoder(rawins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, enableoverlord, enablerem, swapinstrend, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
 //input decodeclk;
 input [31:0] rawins;
 output isregalu;
@@ -1341,34 +2408,64 @@ wire base_bto;
 wire base_bswitch;
 wire base_bif;
 
-SimpleDecoder simpler(isoverlord ? 32'b0 : ins, base_isregalu, base_isimmalu, base_isvalid, base_issystem, base_regA, base_regB, base_regC, base_regwrite, base_aluop, base_imm, base_valsize, base_ctrlread, base_ctrlwrite, base_dataread, base_datawrite, base_extnread, base_extnwrite, base_highA, base_highB, base_highC, base_getpc, base_setpc, base_blink, base_bto, base_bswitch, base_bif);
+SimpleDecoder base_decoder((isoverlord | enablerem) ? 32'b0 : ins, base_isregalu, base_isimmalu, base_isvalid, base_issystem, base_regA, base_regB, base_regC, base_regwrite, base_aluop, base_imm, base_valsize, base_ctrlread, base_ctrlwrite, base_dataread, base_datawrite, base_extnread, base_extnwrite, base_highA, base_highB, base_highC, base_getpc, base_setpc, base_blink, base_bto, base_bswitch, base_bif);
 
-assign isregalu = isoverlord ? 1'b0 : base_isregalu;
-assign isimmalu = isoverlord ? 1'b0 : base_isimmalu;
-assign isvalid = isoverlord ? 1'b0 : base_isvalid;
-assign issystem = isoverlord ? 1'b0 : base_issystem;
-assign regA = isoverlord ? 8'b0 : base_regA;
-assign regB = isoverlord ? 8'b0 : base_regB;
-assign regC = isoverlord ? 8'b0 : base_regC;
-assign regwrite = isoverlord ? 1'b0 : base_regwrite;
-assign aluop = isoverlord ? 5'b0 : base_aluop;
-assign imm = isoverlord ? 64'b0 : base_imm;
-assign valsize = isoverlord ? 2'b0 : base_valsize;
-assign ctrlread = isoverlord ? 1'b0 : base_ctrlread;
-assign ctrlwrite = isoverlord ? 1'b0 : base_ctrlwrite;
-assign dataread = isoverlord ? 1'b0 : base_dataread;
-assign datawrite = isoverlord ? 1'b0 : base_datawrite;
-assign extnread = isoverlord ? 1'b0 : base_extnread;
-assign extnwrite = isoverlord ? 1'b0 : base_extnwrite;
-assign highA = isoverlord ? 1'b0 : base_highA;
-assign highB = isoverlord ? 1'b0 : base_highB;
-assign highC = isoverlord ? 1'b0 : base_highC;
-assign getpc = isoverlord ? 1'b0 : base_getpc;
-assign setpc = isoverlord ? 1'b0 : base_setpc;
-assign blink = isoverlord ? 1'b0 : base_blink;
-assign bto = isoverlord ? 1'b0 : base_bto;
-assign bswitch = isoverlord ? 1'b0 : base_bswitch;
-assign bif = isoverlord ? 1'b0 : base_bif;
+
+wire rv_isregalu;
+wire rv_isimmalu;
+wire rv_isvalid;
+wire rv_issystem;
+wire [7:0] rv_regA;
+wire [7:0] rv_regB;
+wire [7:0] rv_regC;
+wire rv_regwrite;
+wire [4:0] rv_aluop;
+wire [63:0] rv_imm;
+wire [1:0] rv_valsize;
+wire rv_ctrlread;
+wire rv_ctrlwrite;
+wire rv_dataread;
+wire rv_datawrite;
+wire rv_extnread;
+wire rv_extnwrite;
+wire rv_highA;
+wire rv_highB;
+wire rv_highC;
+wire rv_getpc;
+wire rv_setpc;
+wire rv_blink;
+wire rv_bto;
+wire rv_bswitch;
+wire rv_bif;
+
+SimpleDecoder rv_decoder((isoverlord | !enablerem) ? 32'b0 : ins, rv_isregalu, rv_isimmalu, rv_isvalid, rv_issystem, rv_regA, rv_regB, rv_regC, rv_regwrite, rv_aluop, rv_imm, rv_valsize, rv_ctrlread, rv_ctrlwrite, rv_dataread, rv_datawrite, rv_extnread, rv_extnwrite, rv_highA, rv_highB, rv_highC, rv_getpc, rv_setpc, rv_blink, rv_bto, rv_bswitch, rv_bif);
+
+assign isregalu = isoverlord ? 1'b0 : (enablerem ? rv_isregalu : base_isregalu);
+assign isimmalu = isoverlord ? 1'b0 : (enablerem ? rv_isimmalu : base_isimmalu);
+assign isvalid = isoverlord ? 1'b0 : (enablerem ? rv_isvalid : base_isvalid);
+assign issystem = isoverlord ? 1'b0 : (enablerem ? rv_issystem : base_issystem);
+assign regA = isoverlord ? 8'b0 : (enablerem ? rv_regA : base_regA);
+assign regB = isoverlord ? 8'b0 : (enablerem ? rv_regB : base_regB);
+assign regC = isoverlord ? 8'b0 : (enablerem ? rv_regC : base_regC);
+assign regwrite = isoverlord ? 1'b0 : (enablerem ? rv_regwrite : base_regwrite);
+assign aluop = isoverlord ? 5'b0 : (enablerem ? rv_aluop : base_aluop);
+assign imm = isoverlord ? 64'b0 : (enablerem ? rv_imm : base_imm);
+assign valsize = isoverlord ? 2'b0 : (enablerem ? rv_valsize : base_valsize);
+assign ctrlread = isoverlord ? 1'b0 : (enablerem ? rv_ctrlread : base_ctrlread);
+assign ctrlwrite = isoverlord ? 1'b0 : (enablerem ? rv_ctrlwrite : base_ctrlwrite);
+assign dataread = isoverlord ? 1'b0 : (enablerem ? rv_dataread : base_dataread);
+assign datawrite = isoverlord ? 1'b0 : (enablerem ? rv_datawrite : base_datawrite);
+assign extnread = isoverlord ? 1'b0 : (enablerem ? rv_extnread : base_extnread);
+assign extnwrite = isoverlord ? 1'b0 : (enablerem ? rv_extnwrite : base_extnwrite);
+assign highA = isoverlord ? 1'b0 : (enablerem ? rv_highA : base_highA);
+assign highB = isoverlord ? 1'b0 : (enablerem ? rv_highB : base_highB);
+assign highC = isoverlord ? 1'b0 : (enablerem ? rv_highC : base_highC);
+assign getpc = isoverlord ? 1'b0 : (enablerem ? rv_getpc : base_getpc);
+assign setpc = isoverlord ? 1'b0 : (enablerem ? rv_setpc : base_setpc);
+assign blink = isoverlord ? 1'b0 : (enablerem ? rv_blink : base_blink);
+assign bto = isoverlord ? 1'b0 : (enablerem ? rv_bto : base_bto);
+assign bswitch = isoverlord ? 1'b0 : (enablerem ? rv_bswitch : base_bswitch);
+assign bif = isoverlord ? 1'b0 : (enablerem ? rv_bif : base_bif);
 
 endmodule
 
