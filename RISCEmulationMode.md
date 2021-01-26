@@ -59,6 +59,12 @@ Currently implemented (but mostly *untested*) instructions include:
 * `andi`
 * `jalr`
 * `jal`
+* `beq`
+* `bne`
+* `blt`
+* `bge`
+* `bltu`
+* `bgeu`
 * `lb` (requires additional bus support)
 * `ls` (requires additional bus support)
 * `lw`
@@ -83,6 +89,16 @@ Note that some pseudo-operations with their own mnemonics are also encoded as th
 * `ret` (encoded as a `jalr`)
 * `jr` (encoded as a `jalr`)
 * `j` (encoded as a `jal`)
+* `beqz` (encoded as a `beq`)
+* `bnez` (encoded as a `bne`)
+* `blez` (encoded as a `bge`)
+* `bgez` (encoded as a `bge`)
+* `bltz` (encoded as a `blt`)
+* `bgtz` (encoded as a `blt`)
+* `bgt` (encoded as a `blt`)
+* `ble` (encoded as a `bge`)
+* `bgtu` (encoded as a `bltu`)
+* `bleu` (encoded as a `bgeu`)
 
 ## Future Plans
 
