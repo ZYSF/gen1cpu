@@ -1364,9 +1364,21 @@ assign regC = (encoding == `ENCODING_RV_R || encoding == `ENCODING_RV_S || encod
 wire [2:0] funct3 = ins[14:12];
 wire [6:0] funct7 = ins[31:25];
 
-wire [4:0] alufunctshort = (funct3 == `ALU_RV_ADD) ? `ALU_ADD : 5'b0;
-wire [4:0] alufunctlong = (funct3 == `ALU_RV_ADD) ? (funct7 == 7'b0100000 ? `ALU_SUB : `ALU_ADD) : 5'b0;
-wire alufunctshortvalid = (funct3 == `ALU_RV_ADD) ? 1'b1 : 1'b0;
+wire [4:0] alufunctshort =
+	(funct3 == `ALU_RV_ADD) ? `ALU_ADD
+	: ((funct3 == `ALU_RV_XOR) ? `ALU_XOR
+	: ((funct3 == `ALU_RV_OR) ? `ALU_OR
+	: ((funct3 == `ALU_RV_AND) ? `ALU_AND
+	: 5'b0)));
+wire alufunctshortvalid =
+	(funct3 == `ALU_RV_ADD
+	|| funct3 == `ALU_RV_XOR
+	|| funct3 == `ALU_RV_OR
+	|| funct3 == `ALU_RV_AND
+	) ? 1'b1 : 1'b0;
+wire [4:0] alufunctlong = (funct3 == `ALU_RV_ADD && funct7 == 7'b0100000) ? `ALU_SUB
+	: ((funct7 == 7'b0 && alufunctshortvalid) ? alufunctshort
+	: 5'b0);
 wire alufunctlongvalid = alufunctshortvalid && (funct7 == 7'b0100000 || funct7 == 7'b0);
 
 always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunctshortvalid or alufunctlongvalid) begin
