@@ -23,13 +23,13 @@ The basic system of enabling RISC Emulation mode allows you to trap any unimplem
 
 The advantage comes from the fact that the hardware, when running in this mode, may itself implement optimised versions of some (or, in a future implementation, perhaps even all) RISC-V instructions.
 
-Initially this mode has been added without accelerated support for any instructions; Any RISC-V instruction (unless hardware support is added) will trigger an invalid instruction exception just like an unrecognised instruction when operating in a normal mode.
+Initially this mode has been added without accelerated support for any instructions; Any RISC-V instruction other than those enabled in hardware will trigger an invalid instruction exception just like an unrecognised instruction when operating in a normal mode.
 
-Assuming no such instructions are enabled in hardware, enabling RISC Emulation Mode will cause three things to change:
+Besides implementing those instructions are enabled in hardware, enabling RISC Emulation Mode will cause three things to change:
 
 1. The zero register will become tied to the value zero; Any write to the register will be ignored and any read from the register will result in zero. (It's original value will still be maintained once you switch to another mode.)
 2. The "major+minor opcode" portion of each instruction for the purposes of "overlord" mode will be the lower seven bits of the instruction (instead of the higher 8 bits outside of RISC Emulation Mode)
-3. The usual decoding of instructions will be disabled (that is, unless RISC-V instructions are added are added in hardware, they will all be considered invalid instructions)
+3. The usual decoding of instructions will be disabled (that is, if no RISC-V instructions are enabled in hardware, they will all be considered invalid instructions)
 
 ## Purpose & Limitations Of RISC Emulation Mode
 
@@ -58,6 +58,7 @@ Currently implemented (but mostly *untested*) instructions include:
 * `ori`
 * `andi`
 * `jalr`
+* `jal`
 * `lb` (requires additional bus support)
 * `ls` (requires additional bus support)
 * `lw`
@@ -81,6 +82,7 @@ Note that some pseudo-operations with their own mnemonics are also encoded as th
 * `zext.b` (encoded as an `andi`)
 * `ret` (encoded as a `jalr`)
 * `jr` (encoded as a `jalr`)
+* `j` (encoded as a `jal`)
 
 ## Future Plans
 
