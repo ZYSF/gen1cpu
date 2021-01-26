@@ -196,6 +196,10 @@
 `define ALU_EQUALS		5'h0E
 `define ALU_LOADC			5'h10
 `define ALU_DIVS			5'h11
+`define ALU_NEQUALS		5'h12
+`define ALU_BELOW			5'h13
+`define ALU_ABOVEEQ		5'h14
+`define ALU_ABOVESEQ		5'h15
 
 // These are only used for RISC-V emulation (they get converted to regular ALU codes internally):
 `define ALU_RV_ADD		3'b000
@@ -206,6 +210,14 @@
 `define ALU_RV_SRL		3'b101
 `define ALU_RV_OR			3'b110
 `define ALU_RV_AND		3'b111
+
+`define BRANCH_RV_EQ		3'b000
+`define BRANCH_RV_NE		3'b001
+`define BRANCH_RV_LT		3'b100
+`define BRANCH_RV_GE		3'b101
+`define BRANCH_RV_LTU	3'b110
+`define BRANCH_RV_GEU	3'b111
+
 
 `define CTRL_CPUID			6'h0
 `define CTRL_EXCN				6'h1
@@ -1385,7 +1397,20 @@ wire [4:0] alufunctlong = (funct3 == `ALU_RV_ADD && funct7 == 7'b0100000) ? `ALU
 	: 5'b0);
 wire alufunctlongvalid = alufunctshortvalid && (funct7 == 7'b0100000 || funct7 == 7'b0);
 
-always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunctshortvalid or alufunctlongvalid) begin
+wire [4:0] brfunct =
+	(funct3 == `BRANCH_RV_EQ) ? `ALU_EQUALS
+	: ((funct3 == `BRANCH_RV_NE) ? `ALU_NEQUALS
+	: ((funct3 == `BRANCH_RV_LT) ? `ALU_BELOWS
+	: ((funct3 == `BRANCH_RV_GE) ? `ALU_ABOVESEQ
+	: ((funct3 == `BRANCH_RV_LTU) ? `ALU_BELOW
+	: ((funct3 == `BRANCH_RV_GEU) ? `ALU_ABOVEEQ
+	: 5'b0)))));
+
+wire brvalid = (funct3 == `BRANCH_RV_EQ) || (funct3 == `BRANCH_RV_NE)
+	|| (funct3 == `BRANCH_RV_LT) || (funct3 == `BRANCH_RV_GE)
+	|| (funct3 == `BRANCH_RV_LTU) || (funct3 == `BRANCH_RV_GEU);
+
+always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunctshortvalid or alufunctlongvalid or brfunct or brvalid) begin
 	case (opcode)
 	/*`define OP_RV_OP			7'b0110011
 `define OP_RV_OP_IMM		7'b0010011
@@ -2260,12 +2285,13 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 		end
-		`OP_IFEQUALS: begin
-			encoding = `ENCODING_OPBCI;
-			isvalid = 1;
+		*/
+		`OP_RV_BRANCH: begin
+			encoding = `ENCODING_RV_B;
+			isvalid = brvalid;
 			isregalu = 1;
 			bif = 1;
-			aluop = 4'hE;
+			aluop = brfunct;
 			
 			//isregalu = 0;
 			isimmalu = 0;
@@ -2290,7 +2316,10 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highA = 0;
 			highB = 0;
 			highC = 0;
+			signbus = 0;
+			btorelative = 0;
 		end
+		/*
 		// We could probably just match the top four bits here, but it might help to be
 		// clear about each sub-operation:
 		`OP_LD24_0, `OP_LD24_1, `OP_LD24_2, `OP_LD24_3,
@@ -3004,6 +3033,10 @@ always @(op or inB or inC) begin
 			outA = (inB > inC) ? 1 : 0;
 			aluvalid = 1;
 		end
+		`ALU_BELOWS: begin
+			outA = ($signed(inB) < $signed(inC)) ? 1 : 0;
+			aluvalid = 1;
+		end
 		`ALU_EQUALS: begin
 			outA = (inB == inC) ? 1 : 0;
 			aluvalid = 1;
@@ -3014,6 +3047,22 @@ always @(op or inB or inC) begin
 		end
 		`ALU_LDSL16: begin
 			outA = (inB << 16) | (inC & 64'h000000000000FFFF);
+			aluvalid = 1;
+		end
+		`ALU_NEQUALS: begin
+			outA = (inB != inC) ? 1 : 0;
+			aluvalid = 1;
+		end
+		`ALU_BELOW: begin
+			outA = (inB < inC) ? 1 : 0;
+			aluvalid = 1;
+		end
+		`ALU_ABOVEEQ: begin
+			outA = (inB >= inC) ? 1 : 0;
+			aluvalid = 1;
+		end
+		`ALU_ABOVESEQ: begin
+			outA = ($signed(inB) >= $signed(inC)) ? 1 : 0;
 			aluvalid = 1;
 		end
 		default: begin
