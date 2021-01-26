@@ -46,7 +46,11 @@ In particular, this mode doesn't (at least currently) make any attempt to emulat
 
 ## Hardware-Accelerated Emulation
 
-Currently implemented (but mostly *untested*) instructions include:
+The current version implements some of the most commonly-used instructions from the RV64I version of the RISC-V ISA. To compile for this target, use `-march=rv64i` with GCC (but keep in mind that not every instruction is implemented at this stage).
+
+It's possible that a 32-bit implementation might implement RV32I instructions instead (which would probably require a few modifications), but in practice that might be a feature you'd want to disable for more lightweight implementations anyway.
+
+Currently implemented (but mostly *untested*) instructions:
 
 * `add`
 * `sub`
