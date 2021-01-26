@@ -1937,7 +1937,7 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highA = 0;
 			highB = 0;
 			highC = 0;
-			signbus = funct3[2:2];
+			signbus = (funct3[2:2] == 0);
 		end
 		`OP_RV_STORE: begin
 			encoding = `ENCODING_RV_S;
