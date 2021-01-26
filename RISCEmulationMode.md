@@ -50,7 +50,13 @@ Currently implemented (but mostly *untested*) instructions include:
 
 * `add`
 * `sub`
+* `xor`
+* `or`
+* `and`
 * `addi`
+* `xori`
+* `ori`
+* `andi`
 
 Unless listed specifically this does *not* include specialised variants (e.g. such as those dealing with half-register values).
 
@@ -59,6 +65,8 @@ Note that some pseudo-operations with their own mnemonics are also encoded as th
 * `nop` (encoded as an `addi`)
 * `mv` (encoded as an `addi`)
 * `neg` (encoded as a `sub`)
+* `not` (encoded as an `xori`)
+* `zext.b` (encoded as an `andi`)
 
 ## Future Plans
 
