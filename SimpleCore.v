@@ -300,7 +300,7 @@
  */
 `define CPUIDVALUE				64'h5A5953460007010F
 
-module SimpleDecoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus);
+module SimpleDecoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus, btorelative);
 //input decodeclk;
 input [31:0] ins;
 output reg isregalu;
@@ -330,6 +330,7 @@ output reg bto;
 output reg bswitch;
 output reg bif;
 output reg signbus = 0; // Not sure if will be needed in the future (added for parity with RISC-V decoder)
+output reg btorelative = 0; // Also only used in the RISC-V decoder
 
 reg [2:0]encoding = 0;
 
@@ -1297,7 +1298,7 @@ end
 endmodule
 
 /* This is basically a copy of the SimpleDecoder except it decodes some RISC-V instructions instead. */
-module SimpleRVDecoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus);
+module SimpleRVDecoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus, btorelative);
 //input decodeclk;
 input [31:0] ins;
 output reg isregalu;
@@ -1327,6 +1328,7 @@ output reg bto;
 output reg bswitch;
 output reg bif;
 output reg signbus;
+output reg btorelative;
 
 reg [2:0]encoding = 0;
 
@@ -1427,6 +1429,7 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 			signbus = 0;
+			btorelative = 0;
 		end
 		/*
 		`OP_LDSL16IMM: begin
@@ -1492,6 +1495,7 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 			signbus = 0;
+			btorelative = 0;
 		end
 		/*
 		`OP_SUB: begin
@@ -1802,6 +1806,40 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 			signbus = 0;
+			btorelative = 0;
+		end
+		`OP_RV_JAL: begin
+			encoding = `ENCODING_RV_J;
+			isvalid = 1;
+			blink = 1;
+			regwrite = 1;
+			bto = 1;
+			
+			isregalu = 0;
+			isimmalu = 0;
+			//isvalid = 0;
+			issystem = 0;
+			//regwrite = 0;
+			aluop = 0;
+			valsize = 0;
+			ctrlread = 0;
+			ctrlwrite = 0;
+			dataread = 0;
+			datawrite = 0;
+			extnread = 0;
+			extnwrite = 0;
+			getpc = 0;
+			setpc = 0;
+			//blink = 0;
+			//bto = 0;
+			bif = 0;
+			//encoding = 0;
+			bswitch = 0;
+			highA = 0;
+			highB = 0;
+			highC = 0;
+			signbus = 0;
+			btorelative = 1; // This makes it pc-relative instead of using a register for the address
 		end
 		/*
 		`OP_BEFORE: begin
@@ -1938,6 +1976,7 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 			signbus = (funct3[2:2] == 0);
+			btorelative = 0;
 		end
 		`OP_RV_STORE: begin
 			encoding = `ENCODING_RV_S;
@@ -1969,6 +2008,7 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 			signbus = 0;
+			btorelative = 0;
 		end
 		/*
 		`OP_IN32: begin
@@ -2349,6 +2389,7 @@ always @(opcode or funct3 or funct7 or alufunctshort or alufunctlong or alufunct
 			highB = 0;
 			highC = 0;
 			signbus = 0;
+			btorelative = 0;
 		end
 	endcase
 end
@@ -2356,7 +2397,7 @@ end
 endmodule
 
 /* This is designed to fit straight over the top of SimpleDecoder & SimpleRVDecoder (multiplexing the two) and also to handle some edge cases like overloading and endian-swapping. */
-module SimpleOverlordDecoder(rawins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus, enableoverlord, enablerem, swapinstrend, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
+module SimpleOverlordDecoder(rawins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus, btorelative, enableoverlord, enablerem, swapinstrend, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
 //input decodeclk;
 input [31:0] rawins;
 output isregalu;
@@ -2386,6 +2427,7 @@ output bto;
 output bswitch;
 output bif;
 output signbus;
+output btorelative;
 input enableoverlord;
 input enablerem;
 input swapinstrend;
@@ -2433,9 +2475,9 @@ wire base_bto;
 wire base_bswitch;
 wire base_bif;
 wire base_signbus;
+wire base_btorelative;
 
-SimpleDecoder base_decoder((isoverlord | enablerem) ? 32'b0 : ins, base_isregalu, base_isimmalu, base_isvalid, base_issystem, base_regA, base_regB, base_regC, base_regwrite, base_aluop, base_imm, base_valsize, base_ctrlread, base_ctrlwrite, base_dataread, base_datawrite, base_extnread, base_extnwrite, base_highA, base_highB, base_highC, base_getpc, base_setpc, base_blink, base_bto, base_bswitch, base_bif, base_signbus);
-
+SimpleDecoder base_decoder((isoverlord | enablerem) ? 32'b0 : ins, base_isregalu, base_isimmalu, base_isvalid, base_issystem, base_regA, base_regB, base_regC, base_regwrite, base_aluop, base_imm, base_valsize, base_ctrlread, base_ctrlwrite, base_dataread, base_datawrite, base_extnread, base_extnwrite, base_highA, base_highB, base_highC, base_getpc, base_setpc, base_blink, base_bto, base_bswitch, base_bif, base_signbus, base_btorelative);
 
 wire rv_isregalu;
 wire rv_isimmalu;
@@ -2464,8 +2506,9 @@ wire rv_bto;
 wire rv_bswitch;
 wire rv_bif;
 wire rv_signbus;
+wire rv_btorelative;
 
-SimpleDecoder rv_decoder((isoverlord | !enablerem) ? 32'b0 : ins, rv_isregalu, rv_isimmalu, rv_isvalid, rv_issystem, rv_regA, rv_regB, rv_regC, rv_regwrite, rv_aluop, rv_imm, rv_valsize, rv_ctrlread, rv_ctrlwrite, rv_dataread, rv_datawrite, rv_extnread, rv_extnwrite, rv_highA, rv_highB, rv_highC, rv_getpc, rv_setpc, rv_blink, rv_bto, rv_bswitch, rv_bif, rv_signbus);
+SimpleDecoder rv_decoder((isoverlord | !enablerem) ? 32'b0 : ins, rv_isregalu, rv_isimmalu, rv_isvalid, rv_issystem, rv_regA, rv_regB, rv_regC, rv_regwrite, rv_aluop, rv_imm, rv_valsize, rv_ctrlread, rv_ctrlwrite, rv_dataread, rv_datawrite, rv_extnread, rv_extnwrite, rv_highA, rv_highB, rv_highC, rv_getpc, rv_setpc, rv_blink, rv_bto, rv_bswitch, rv_bif, rv_signbus, rv_btorelative);
 
 assign isregalu = isoverlord ? 1'b0 : (enablerem ? rv_isregalu : base_isregalu);
 assign isimmalu = isoverlord ? 1'b0 : (enablerem ? rv_isimmalu : base_isimmalu);
@@ -2494,6 +2537,7 @@ assign bto = isoverlord ? 1'b0 : (enablerem ? rv_bto : base_bto);
 assign bswitch = isoverlord ? 1'b0 : (enablerem ? rv_bswitch : base_bswitch);
 assign bif = isoverlord ? 1'b0 : (enablerem ? rv_bif : base_bif);
 assign signbus = isoverlord ? 1'b0 : (enablerem ? rv_signbus : base_signbus);
+assign btorelative = isoverlord ? 1'b0 : (enablerem ? rv_btorelative : base_btorelative);
 
 endmodule
 
@@ -3147,6 +3191,7 @@ wire bto;
 wire bswitch;
 wire bif;
 wire signbus;
+wire btorelative;
 wire needsbus = dataread || datawrite || extnread || extnwrite;
 
 reg [31:0]ovld0;
@@ -3161,7 +3206,7 @@ wire isoverlord;
 
 //reg decodeclk = 0;
 // (ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, getpc, setpc, blink, bto, bswitch, bif)
-SimpleOverlordDecoder decoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus, overlordenable, remenable, instrendswap, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
+SimpleOverlordDecoder decoder(ins, isregalu, isimmalu, isvalid, issystem, regA, regB, regC, regwrite, aluop, imm, valsize, ctrlread, ctrlwrite, dataread, datawrite, extnread, extnwrite, highA, highB, highC, getpc, setpc, blink, bto, bswitch, bif, signbus, btorelative, overlordenable, remenable, instrendswap, ovld0, ovld1, ovld2, ovld3, ovld4, ovld5, ovld6, ovld7, isoverlord);
 
 wire [55:0] dinext8 = din[7:7] ? 56'hFFFFFFFFFFFFFF : 56'h0;
 wire [47:0] dinext16 = din[15:15] ? 48'hFFFFFFFFFFFF : 48'h0;
@@ -3480,7 +3525,8 @@ always @(negedge clock) begin
 				 * (similar to flags and nflags etc.).
 				 */
 				if (bto) begin
-					npc = isimmalu ? (regOutC + imm) : regOutC;
+					// NOTE: Branching works a bit different in RISC-V mode, this includes a special jump operation.
+					npc = isimmalu ? (regOutC + imm) : (btorelative ? (pc + imm) : regOutC);
 					/* In normal operation, flags etc. stay the same. But they are swapped
 					 * instead if there's an exception or similar mode-switch, so the new flags
 					 * etc. are re-asserted here but only finally applied at the start of the
