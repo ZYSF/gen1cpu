@@ -8,7 +8,7 @@ Designed to be deployed in microcontrollers (MCUs) for security-sensitive device
 
 ## Current Status
 
-As of early 2021, I'm still actively adding features and tools. The main feature which is lacking at the moment is a proper test suite (and any resulting bugfixes!), but additional optimisations and other features would also be desirable.
+As of early ~2021~ 2022, I'm still actively adding features and tools. The main feature which is lacking at the moment is a proper test suite (and any resulting bugfixes!), but additional optimisations and other features would also be desirable.
 
 A "proper test suite" would probably have to begin with simulated builds for practical reasons. Some (limited) informal testing has already been done both on Cyclone 10 FPGA and by simulating in Icarus Verilog.
 
@@ -54,8 +54,7 @@ A "proper test suite" would probably have to begin with simulated builds for pra
 * [Licensing Explained](LicensingExplained.md) should clarify the intention and specifics of the (Public Domain!) license
 
 ## Tools
-
 * [ZAsm](https://github.com/ZYSF/ZAsm/) a simple but flexible assembler which supports the new instruction set.
     - NOTE: This may be slightly out-of-sync with latest processor features.
 * [ZLink](https://github.com/ZYSF/ZLink/) a linker which can produce flat binaries from the assembled code.
-* A C compiler is also in development.
+* [ZNCC](https://github.com/ZYSF/ZNCC/) early release of C-like compiler code (may partly work, in theory, with the RISC emulation mode)
