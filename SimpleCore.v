@@ -111,8 +111,11 @@
 `define OP_BE				8'hB3 // 0xB3aaxxcc: a = pc + 4; npc = c; // This is short for branch-and-enter
 `define OP_BEFORE			8'hB4 // 0xB4xxxxxx: npc = before; nflags = mirrorflags; nmirrorflags = flags; nbefore = mirrorbefore; nmirrorbefore = before;
 `define OP_BAIT			8'hB8 // 0xB8xxxxxx: invalid instruction, but reserved for traps.
-`define OP_CTRLIN64		8'hC3	// 0xC3axiiii: a=ctrl[i]; // Similar to memory ops but with no dynamic base
-`define OP_CTRLOUT64		8'hCB	// 0xCBxciiii: ctrl[i]=c;
+// NOTE: 32-/64-bit variants use different operations for ctrlin/ctrlout, since internal registers share the same logical size
+`define OP_CTRLIN64	        8'hC3	// 0xC3axiiii: a=ctrl[i]; // Similar to memory ops but with no dynamic base
+`define OP_CTRLOUT64        8'hCB	// 0xCBxciiii: ctrl[i]=c;
+`define OP_CTRLIN32	        8'hC2	// 0xC3axiiii: a=ctrl[i]; // Similar to memory ops but with no dynamic base
+`define OP_CTRLOUT32        8'hCA	// 0xCBxciiii: ctrl[i]=c;
 `define OP_READ32			8'hD2 // 0xD2abiiii: a=data[b+i];
 `define OP_READ32H		8'hD6
 `define OP_WRITE32		8'hDA	// 0xDAbciiii: data[b+i]=c;
@@ -300,8 +303,8 @@
 
 `define STAGE_ERROR		32
 
-`define FLAGS_INITIAL			64'h1111111100000001
-`define MIRRORFLAGS_INITIAL	64'h1111111100000001
+`define FLAGS_INITIAL			64'hf01
+`define MIRRORFLAGS_INITIAL	64'hf01
 /* Defines the value of the CPUID register, which should identify basic features/version as well as a vendor id.
  * Low byte is the maximum addressable register, next is ISA version, then number of MMU slots, high bytes are a
  * signature.
