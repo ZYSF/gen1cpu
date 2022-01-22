@@ -1749,7 +1749,7 @@ wire [7:0] base_regB;
 wire [7:0] base_regC;
 wire base_regwrite;
 wire [4:0] base_aluop;
-wire [64:0] base_imm;
+wire [63:0] base_imm;
 wire [1:0] base_valsize;
 wire base_ctrlread;
 wire base_ctrlwrite;
@@ -2294,42 +2294,42 @@ wire [63:0] sdin =
 		: din))
 	) : din;
 
-reg [64:0]regInA;
-wire [64:0]regOutB;
-wire [64:0]regOutC;
+reg [63:0]regInA;
+wire [63:0]regOutB;
+wire [63:0]regOutC;
 wire regvalid;
 reg reallyregwrite = 0;
 
 SimpleRegisters registers(reset, maxreg, regA, regB, regC, reallyregwrite || reset, highA, highB, highC, regInA, regOutB, regOutC, regvalid, remenable);
 
-wire [64:0]aluOutA;
-wire [64:0]aluInB = regOutB;
-wire [64:0]aluInC = isregalu ? regOutC : imm;
+wire [63:0]aluOutA;
+wire [63:0]aluInB = regOutB;
+wire [63:0]aluInC = isregalu ? regOutC : imm;
 wire aluvalid;
 
 SimpleALU alu(aluop, aluOutA, aluInB, aluInC, aluvalid);
 
-reg [64:0] timerctrlin;
-wire [64:0] timerctrlout;
+reg [63:0] timerctrlin;
+wire [63:0] timerctrlout;
 wire timerinterrupt = timerctrlout[0];
 SimpleTimer timer(clock, reset, timerctrlin, timerctrlout);
 
-reg [64:0] mmuX0;
-reg [64:0] mmuY0;
-reg [64:0] mmuX1;
-reg [64:0] mmuY1;
-reg [64:0] mmuX2;
-reg [64:0] mmuY2;
-reg [64:0] mmuX3;
-reg [64:0] mmuY3;
-reg [64:0] mmuX4;
-reg [64:0] mmuY4;
-reg [64:0] mmuX5;
-reg [64:0] mmuY5;
-reg [64:0] mmuX6;
-reg [64:0] mmuY6;
-reg [64:0] mmuX7;
-reg [64:0] mmuY7;
+reg [63:0] mmuX0;
+reg [63:0] mmuY0;
+reg [63:0] mmuX1;
+reg [63:0] mmuY1;
+reg [63:0] mmuX2;
+reg [63:0] mmuY2;
+reg [63:0] mmuX3;
+reg [63:0] mmuY3;
+reg [63:0] mmuX4;
+reg [63:0] mmuY4;
+reg [63:0] mmuX5;
+reg [63:0] mmuY5;
+reg [63:0] mmuX6;
+reg [63:0] mmuY6;
+reg [63:0] mmuX7;
+reg [63:0] mmuY7;
 wire mmuerr;
 
 SimpleMMUx8 mmu(mmuenable, dsize, address, final_address, mmuerr, sysmode, readmem | readio, writemem | writeio, readins, readio | writeio,
@@ -2364,7 +2364,7 @@ end
 
 reg [5:0]ctrln;
 
-wire [64:0]ctrlv = (ctrln == `CTRL_FLAGS) ? flags : ((ctrln == `CTRL_MIRRORFLAGS) ? mirrorflags
+wire [63:0]ctrlv = (ctrln == `CTRL_FLAGS) ? flags : ((ctrln == `CTRL_MIRRORFLAGS) ? mirrorflags
 	: ((ctrln == `CTRL_XADDR) ? xaddr : ((ctrln == `CTRL_MIRRORXADDR) ? mirrorxaddr
 	: ((ctrln == `CTRL_EXCN) ? excn : ((ctrln == `CTRL_TIMER0) ? timerctrlout
 	: (ctrln == `CTRL_SYSTEM0 ? system0reg : ((ctrln == `CTRL_SYSTEM1) ? system1reg
