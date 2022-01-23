@@ -176,11 +176,67 @@ Implementations may provide specialised instructions and/or specialised hardware
 
 Implementations can also either ignore or raise errors if the higher/lower bits of the addresses are not what they expect, or more generally if the address is protected or just beyond memory (this generally means that read/write addresses should be multiples of four, and that any unused higher bits should be left as zero).
 
+### Read16 (planned)
+
+    OP_READ16			0xD1
+  
+    0xD1abiiii: a=data[b+i];
+
+Only reads the lower 16 bits, the rest of the register is reset to zero.
+    
+### Read8 (planned)
+
+    OP_READ8			0xD0
+  
+    0xD0abiiii: a=data[b+i];
+
+Only reads the lower 8 bits, the rest of the target register is reset to zero.
+
+### Read16x (planned)
+
+    OP_READ16x			0xD5
+  
+    0xD5abiiii: a=data[b+i];
+
+Reads 16 bits from memory and sign-extends it to fill the target register.
+    
+### Read8x (planned)
+
+    OP_READ8x			0xD4
+  
+    0xD4abiiii: a=data[b+i];
+
+Reads 8 bits from memory and sign-extends it to fill the target register.
+
+### Read32x (planned)
+
+    OP_READ32x			0xD6
+  
+    0xD6abiiii: a=data[b+i];
+
+Reads 32 bits from memory and sign-extends it to fill the target register.
+
+NOTE: This is only meaningful for 64-bit implementations, and need not be implemented on 32-bit versions.
+
 ### Write32 (write data memory)
 
     OP_WRITE32		0xDA
   
     0xDAbciiii: data[b+i]=c;
+    
+This only writes lower 32 bits of register (or the whole thing in 32-bit implementations).
+
+### Write16 (planned)
+
+    OP_WRITE16      0xD9
+    
+    0xD9bciiii: data[b+i]=c; // Only writes lower 16 bits of register
+
+### Write8 (planned)
+
+    OP_WRITE8      0xD8
+    
+    0xD8bciiii: data[b+i]=c; // Only writes lower 8 bits of register
 
 ### In32 (read I/O)
 
