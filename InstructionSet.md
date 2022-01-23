@@ -282,10 +282,15 @@ This can also be used for unconditional jumps to local addresses (since any regi
 
 These have only just been added at time of writing and haven't really been tested yet:
 
+The first set may be replaced or re-encoded in favour of more rational extended read/write operations (see "planned" instructions):
+
 * 0xD6 - read32h (same as read32 except replaces the high 32 bits of the register without altering the low bits)
 * 0xDE - write32h (same as write32 except takes the data from the high 32 bits of the register)
 * 0xE6 - in32h (like read32h except for I/O bus)
 * 0xEE - out32h (like write32h except for I/O bus)
+
+The second set are more specialised, and are likely to stay.
+
 * 0x3x - ld24 (optimised load instruction which can reset any of the lower 16 registers based on a 24-bit immediate value)
 * 0x1D - ldsll6imm (designed for appending additional bits to a loaded value, by shifting an existing value left by 16 bits and replacing the lower 16 bits with the immediate value)
 * 0x9x - xlu (designed for accessing extended ALU-like operations, allowing for up to 65536 different operations using the lower 16 registers)
